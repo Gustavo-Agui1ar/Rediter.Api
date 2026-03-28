@@ -1,19 +1,45 @@
-﻿using Supabase.Postgrest.Attributes;
-using Supabase.Postgrest.Models;
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 [Table("pictures")]
-public class Picture : BaseModel
+public class Picture
 {
-    [PrimaryKey("id", false)]
+    [Key]
     public int Id { get; set; }
+
+    [Column("file_name")]
+    public string FileName { get; set; } = null!; 
+
     [Column("storage_path")]
     public string StoragePath { get; set; } = null!;
-    [Column("public_url")]
-    public string PublicUrl { get; set; } = null!;
+
     [Column("mime_type")]
     public string MimeType { get; set; } = null!;
+
     [Column("file_size_bytes")]
-    public long FileSizeBytes { get; set; }
-    [Column("created_at")]
-    public DateTime CreatedAt { get; set; }
+    public int Size { get; set; }
+
+    [NotMapped]
+    public string FullPath => Path.Combine(StoragePath, FileName);
+    
+    [NotMapped]
+    private FileInfo? file { get; set; }
+
+    [NotMapped]
+    public FileInfo File
+    { 
+        get
+        {
+            if(file == null)
+            {
+                if(string.IsNullOrWhiteSpace(FullPath))
+                     throw new Exception("File path is invalid or empty.");
+
+                file = new FileInfo(FullPath);
+            }
+
+            return file;
+        }
+    }
+
 }

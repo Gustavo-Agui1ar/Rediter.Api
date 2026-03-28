@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Rediter.Api.DTOs;
 using Rediter.Api.Services;
 
 namespace Rediter.Api.Controllers
@@ -24,26 +23,6 @@ namespace Rediter.Api.Controllers
         public IActionResult GoogleAuth()
         {
             return Ok("Google auth successful");
-        }
-
-        [HttpPut("Register")]
-        public async Task<IActionResult> Register([FromBody]UserDTO user)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            if(!(await _userService.CreateUser(user)))
-                return BadRequest("Failed to register user.");
-
-            return Ok("User registered successfully");
-        }
-
-        [HttpDelete("Delete")]
-        public IActionResult DeleteUser(string userId)
-        {
-            if(!_userService.DeleteUser(userId)) { return BadRequest("Failed to delete user."); }
-
-            return Ok("User deleted successfully");
         }
     }
 }

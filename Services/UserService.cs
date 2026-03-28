@@ -1,4 +1,5 @@
-﻿using Rediter.Api.DTOs;
+﻿using Npgsql;
+using Rediter.Api.DTOs;
 using Rediter.Api.Models;
 using Rediter.Api.Repositories;
 
@@ -26,26 +27,33 @@ namespace Rediter.Api.Services
 
                 return await _UserRepository.Insert(user);
             }
-            catch (Supabase.Postgrest.Exceptions.PostgrestException ex)
+            catch (Exception ex)
             {
-                if (ex.Message.Contains("23505") || ex.Message.Contains("already exists"))
+                if (ex.InnerException is PostgresException pgEx && pgEx.SqlState == "23505")
                 {
-                    if (ex.Message.Contains("users_name_key"))
-                        throw new Exception("Este nome de usuário já está em uso.");
+                    if (pgEx.ConstraintName != null && pgEx.ConstraintName.Contains("email"))
+                    {
+                        throw new Exception("Este e-mail já está em uso.");
+                    }
+                    if (pgEx.ConstraintName != null && pgEx.ConstraintName.Contains("name"))
+                    {
+                        throw new Exception("Este nome de usuário já está sendo utilizado.");
+                    }
 
-                    if (ex.Message.Contains("users_email_key"))
-                        throw new Exception("Este e-mail já está cadastrado.");
-
-                    throw new Exception("Usuário ou e-mail já existem.");
+                    throw new Exception("Um registro com estes dados já existe.");
                 }
-
-                throw;
+                throw new Exception("Ocorreu um erro ao criar o usuário: " + ex.Message);
             }
         }
 
-        public bool DeleteUser(string userId)
+        public async Task<bool> DeleteUser(string userId)
         {
-            return _UserRepository.DeleteUser(userId);
+            User? user = await _UserRepository.GetById(userId);
+            
+            if (user == null)
+                throw new Exception("User not found.");
+
+            return (await _UserRepository.Delete(user));
         }
     }
 }

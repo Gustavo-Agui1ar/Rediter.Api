@@ -1,31 +1,43 @@
-﻿using Supabase.Postgrest.Models;
+﻿using Microsoft.EntityFrameworkCore;
+using Rediter.Api.Data; 
 
 namespace Rediter.Api.Repositories
 {
-    public class BaseRepository<T> where T : BaseModel, new()
+    public class BaseRepository<T> where T : class
     {
-        protected readonly Supabase.Client _supabase;
-        protected readonly Session _session;
-        public BaseRepository(Supabase.Client supabase, Session session)
+        protected readonly DataContext _context;
+        protected readonly DbSet<T> _dbSet;
+
+        public BaseRepository(DataContext context)
         {
-            _supabase = supabase;
-            _session = session;
+            _context = context;
+            _dbSet = _context.Set<T>();
         }
 
         public virtual async Task<bool> Insert(T entity)
         {
-            var result = await _supabase.From<T>().Insert(entity);
-            return result.Model != null;
+            await _dbSet.AddAsync(entity);
+            var rows = await _context.SaveChangesAsync();
+            return rows > 0;
         }
-        public virtual void Update(T entity)
+
+        public virtual async Task<bool> Update(T entity)
         {
-            _supabase.From<T>().Update(entity);
+            _dbSet.Update(entity);
+            var rows = await _context.SaveChangesAsync();
+            return rows > 0;
         }
 
         public virtual async Task<bool> Delete(T entity)
         {
-            var result = await _supabase.From<T>().Delete(entity);
-            return result.Model != null;
+            _dbSet.Remove(entity);
+            var rows = await _context.SaveChangesAsync();
+            return rows > 0;
+        }
+
+        public virtual async Task<T?> GetById(object id)
+        {
+            return await _dbSet.FindAsync(id);
         }
     }
 }
