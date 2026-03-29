@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Rediter.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,7 +16,11 @@ builder.Services.AddDbContext<Rediter.Api.Data.DataContext>(options =>
 
 builder.Services.AddScoped<Rediter.Api.Repositories.UserRepository>();
 
-builder.Services.AddScoped<Rediter.Api.Services.UserService>();
+//Serviços
+builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<HashService>();
+builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<TokenService>();
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 

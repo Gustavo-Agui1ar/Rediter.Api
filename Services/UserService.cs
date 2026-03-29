@@ -8,9 +8,12 @@ namespace Rediter.Api.Services
     public class UserService
     {
         private readonly UserRepository _UserRepository;
-        public UserService(UserRepository userRepository)
+        private readonly EmailService _emailService;
+
+        public UserService(UserRepository userRepository, EmailService emailService)
         {
             _UserRepository = userRepository;
+            _emailService = emailService;
         }
 
         public async Task<bool> CreateUser(UserDTO dto)
@@ -22,8 +25,12 @@ namespace Rediter.Api.Services
                     Name = dto.Name,
                     Email = dto.Email,
                     Password = HashService.HashPassword(dto.Password),
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    VerificationCode = new Random(DateTime.Now.Millisecond).Next(100000, 999999).ToString()
                 };
+
+
+                await _emailService.SendVerificationCodeAsync(user.Email, user.Name, user.VerificationCode);
 
                 return await _UserRepository.Insert(user);
             }
@@ -49,11 +56,26 @@ namespace Rediter.Api.Services
         public async Task<bool> DeleteUser(string userId)
         {
             User? user = await _UserRepository.GetById(userId);
-            
+
             if (user == null)
                 throw new Exception("User not found.");
 
             return (await _UserRepository.Delete(user));
+        }
+
+        public string GetUserCode(string userId)
+        {
+            return _UserRepository.GetCodeById(userId);
+        }
+
+        public async Task<User?> GetByUUId(string id)
+        {
+            return await _UserRepository.GetByUUId(id);
+        }
+
+        public async Task<bool> Update(User user)
+        {
+            return await _UserRepository.Update(user);
         }
     }
 }

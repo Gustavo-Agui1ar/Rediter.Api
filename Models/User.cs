@@ -28,6 +28,18 @@ namespace Rediter.Api.Models
         [ForeignKey(nameof(ProfilePictureId))]
         public virtual Picture? ProfilePicture { get; set; }
 
+        [Column("is_verified")]
+        public bool IsVerified { get; set; } = false;
+
+        [Column("verification_code")]
+        public string? VerificationCode { get; set; }
+
+        [Column("refresh_token")]
+        public string? RefreshToken { get; set; }
+
+        [Column("refresh_token_expiration")]
+        public DateTime? RefreshTokenExpiration { get; set; }
+
         public User() { }
     }
 }

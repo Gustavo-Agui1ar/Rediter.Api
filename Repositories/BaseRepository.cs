@@ -35,7 +35,7 @@ namespace Rediter.Api.Repositories
             return rows > 0;
         }
 
-        public virtual async Task<T?> GetById(object id)
+        public virtual async Task<T?> GetByUUId(object id)
         {
             return await _dbSet.FindAsync(id);
         }

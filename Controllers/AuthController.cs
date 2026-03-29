@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Rediter.Api.DTOs;
 using Rediter.Api.Services;
 
 namespace Rediter.Api.Controllers
@@ -7,10 +8,10 @@ namespace Rediter.Api.Controllers
     [Route("/Auth")]
     public class AuthController : ControllerBase
     {
-        private readonly UserService _userService;
-        public AuthController(UserService userService)
+        private readonly AuthService _authService;
+        public AuthController(AuthService authService)
         {
-            _userService = userService;
+            _authService = authService;
         }
 
         [HttpPost("Rediter")]
@@ -23,6 +24,20 @@ namespace Rediter.Api.Controllers
         public IActionResult GoogleAuth()
         {
             return Ok("Google auth successful");
+        }
+
+        [HttpGet("Code")]
+        public async Task<IActionResult> VerifyCode([FromQuery] string code, [FromQuery] string userId)
+        {
+            try
+            {
+                TokenRequestDTO token = await _authService.VerifyCode(code, userId);
+                return Ok(token);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"An error occurred while verifying the code: {ex.Message}");
+            }
         }
     }
 }
