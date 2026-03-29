@@ -16,7 +16,7 @@ namespace Rediter.Api.Services
             _emailService = emailService;
         }
 
-        public async Task<bool> CreateUser(UserDTO dto)
+        public async Task<string> CreateUser(UserDTO dto)
         {
             try
             {
@@ -31,8 +31,8 @@ namespace Rediter.Api.Services
 
 
                 await _emailService.SendVerificationCodeAsync(user.Email, user.Name, user.VerificationCode);
-
-                return await _UserRepository.Insert(user);
+                await _UserRepository.Insert(user);
+                return user.Id.ToString();
             }
             catch (Exception ex)
             {
@@ -55,7 +55,7 @@ namespace Rediter.Api.Services
 
         public async Task<bool> DeleteUser(string userId)
         {
-            User? user = await _UserRepository.GetById(userId);
+            User? user = await _UserRepository.GetByUUId(userId);
 
             if (user == null)
                 throw new Exception("User not found.");
@@ -68,9 +68,14 @@ namespace Rediter.Api.Services
             return _UserRepository.GetCodeById(userId);
         }
 
-        public async Task<User?> GetByUUId(string id)
+        public async Task<User?> GetByUUId(Guid id)
         {
             return await _UserRepository.GetByUUId(id);
+        }
+
+        public async Task<User?> GetByEmail(string email)
+        {
+            return await _UserRepository.GetByEmail(email);
         }
 
         public async Task<bool> Update(User user)

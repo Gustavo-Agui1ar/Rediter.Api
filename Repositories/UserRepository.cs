@@ -1,4 +1,5 @@
-﻿using Rediter.Api.Data;
+﻿using Microsoft.EntityFrameworkCore;
+using Rediter.Api.Data;
 using Rediter.Api.Models;
 
 namespace Rediter.Api.Repositories
@@ -12,6 +13,15 @@ namespace Rediter.Api.Repositories
         {
             User? user = _dbSet.Find(Guid.Parse(userId));
             return user?.VerificationCode ?? string.Empty;
+        }
+
+        public async Task<User?> GetByEmail(string email)
+        {
+            string sql = "SELECT * FROM Users WHERE Email = {0}";
+
+            return await _dbSet
+                .FromSqlRaw(sql, email)
+                .FirstOrDefaultAsync();
         }
     }
 }

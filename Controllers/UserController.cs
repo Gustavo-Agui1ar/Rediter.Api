@@ -5,7 +5,7 @@ using Rediter.Api.Services;
 namespace Rediter.Api.Controllers
 {
     [ApiController]
-    [Route("/User")]
+    [Route("User")]
     public class UserController : ControllerBase
     {
         private readonly UserService _userService;
@@ -22,10 +22,9 @@ namespace Rediter.Api.Controllers
                 if (!ModelState.IsValid)
                     return BadRequest(ModelState);
 
-                if (!(await _userService.CreateUser(user)))
-                    return BadRequest("Failed to register user.");
+                string userId = await _userService.CreateUser(user);
 
-                return Ok("User registered successfully");
+                return Ok(new { userId = userId });
             }
             catch (Exception ex)
             {

@@ -5,7 +5,7 @@ using Rediter.Api.Services;
 namespace Rediter.Api.Controllers
 {
     [ApiController]
-    [Route("/Auth")]
+    [Route("Auth")]
     public class AuthController : ControllerBase
     {
         private readonly AuthService _authService;
@@ -15,9 +15,17 @@ namespace Rediter.Api.Controllers
         }
 
         [HttpPost("Rediter")]
-        public IActionResult RediterAuth()
+        public async Task<IActionResult> RediterAuth([FromBody]UserDTO user)
         {
-            return Ok("Rediter auth successful");
+            try
+            {
+                TokenRequestDTO token = await _authService.AuthenticateFromRediter(user.Email, user.Password);
+                return Ok(token);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [HttpPost("Google")]
@@ -28,6 +36,11 @@ namespace Rediter.Api.Controllers
 
         [HttpGet("Code")]
         public async Task<IActionResult> VerifyCode([FromQuery] string code, [FromQuery] string userId)
+        {
+            return await GerarTokensDeAcesso(code, userId);
+        }
+
+        private async Task<IActionResult> GerarTokensDeAcesso(string code, string userId)
         {
             try
             {
