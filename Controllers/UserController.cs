@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Rediter.Api.DTOs;
 using Rediter.Api.Services;
+using System.Diagnostics;
 
 namespace Rediter.Api.Controllers
 {
@@ -33,19 +34,48 @@ namespace Rediter.Api.Controllers
         }
 
         [HttpDelete("Delete")]
-        public async Task<IActionResult> DeleteUser([FromBody]DeleteRequestDTO dto)
+        public async Task<IActionResult> DeleteUser([FromBody] DeleteRequestDTO dto)
         {
             try
             {
                 if (string.IsNullOrWhiteSpace(dto.UserId)) return BadRequest("User not found in DB");
 
-                if(!( await _userService.DeleteUser(dto.UserId))) return BadRequest("Failed to delete user.");
+                if (!(await _userService.DeleteUser(dto.UserId))) return BadRequest("Failed to delete user.");
 
                 return Ok("User deleted successfully");
             }
             catch (Exception ex)
             {
                 return BadRequest($"An error occurred while deleting the user: {ex.Message}");
+            }
+        }
+
+        [HttpGet("GetUser")]
+        public async Task<IActionResult> GetUser([FromQuery] TokenRequestDTO tokens)
+        {
+            try
+            {
+                UserDTO? user = await _userService.GetUserDtoByRefreshToken(tokens.RefreshToken);
+
+                return Ok(user);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"An error occurred while retrieving the user: {ex.Message}");
+            }
+        }
+
+        [HttpPost("UpdateProfile")]
+        public async Task<IActionResult> UpdateProfile([FromForm] UserUpdateDTO dto)
+        {
+            try
+            {
+                await _userService.UpdateUserByUserDTO(dto);
+                return Ok("User profile updated successfully");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"An error occurred while updating the user profile: {ex.Message}");
             }
         }
     }

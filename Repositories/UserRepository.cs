@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Rediter.Api.Data;
+using Rediter.Api.DTOs;
 using Rediter.Api.Models;
 
 namespace Rediter.Api.Repositories
@@ -21,6 +22,14 @@ namespace Rediter.Api.Repositories
 
             return await _dbSet
                 .FromSqlRaw(sql, email)
+                .FirstOrDefaultAsync();
+        }
+        public async Task<User?> GetUserByRefresh(string refresh)
+        {
+            string sql = "SELECT * FROM Users WHERE refresh_token = {0}";
+
+            return await _dbSet
+                .FromSqlRaw(sql, refresh)
                 .FirstOrDefaultAsync();
         }
     }

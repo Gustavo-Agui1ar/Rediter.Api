@@ -15,6 +15,7 @@ builder.Services.AddDbContext<Rediter.Api.Data.DataContext>(options =>
            .UseNpgsql(connectionString));
 
 builder.Services.AddScoped<Rediter.Api.Repositories.UserRepository>();
+builder.Services.AddScoped<Rediter.Api.Repositories.PictureRepository>();
 
 //Serviços
 builder.Services.AddScoped<UserService>();
@@ -22,6 +23,7 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<HashService>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<PictureService>();
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 

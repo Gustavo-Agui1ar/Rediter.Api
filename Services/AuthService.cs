@@ -25,11 +25,7 @@ namespace Rediter.Api.Services
             if (!inputCode.Equals(user?.VerificationCode) && user?.CreatedAt < user?.CreatedAt.AddDays(1))
                 throw new Exception("Invalid verification code.");
 
-            TokenRequestDTO dto = _tokenService.GenerateToken(user!);
-
-            user?.RefreshToken = dto.RefreshToken;
-            await _userService.Update(user!);
-            return dto;
+            return await GenerateToken(user);
         }
 
         public async Task<TokenRequestDTO> AuthenticateFromRediter(string email, string password)
@@ -42,11 +38,16 @@ namespace Rediter.Api.Services
             if (!HashService.VerifyPassword(password, user.Password))
                 throw new Exception("Invalid password.");
             
+            return await GenerateToken(user);
+        }
+
+        private async Task<TokenRequestDTO> GenerateToken(User? user)
+        {
             TokenRequestDTO dto = _tokenService.GenerateToken(user!);
 
             user?.RefreshToken = dto.RefreshToken;
+            user?.RefreshTokenExpiration = DateTime.UtcNow.AddDays(30);
             await _userService.Update(user!);
-            
             return dto;
         }
     }

@@ -8,12 +8,14 @@ namespace Rediter.Api.Services
     public class UserService
     {
         private readonly UserRepository _UserRepository;
+        private readonly PictureService _pictureService;
         private readonly EmailService _emailService;
 
-        public UserService(UserRepository userRepository, EmailService emailService)
+        public UserService(UserRepository userRepository, EmailService emailService, PictureService pictureService  )
         {
             _UserRepository = userRepository;
             _emailService = emailService;
+            _pictureService = pictureService;
         }
 
         public async Task<string> CreateUser(UserDTO dto)
@@ -81,6 +83,68 @@ namespace Rediter.Api.Services
         public async Task<bool> Update(User user)
         {
             return await _UserRepository.Update(user);
+        }
+
+        public async Task<UserDTO> GetUserDtoByRefreshToken(string refreshToken)
+        {
+            User? user = await _UserRepository.GetUserByRefresh(refreshToken);
+            if (user == null)
+                throw new Exception("User not found.");
+
+            string file = null;
+            string cover = null;
+
+            if(user.ProfilePicture != null)
+            {
+                file = user.ProfilePicture.FileName;
+            }
+
+            if (user.ProfileCover != null)
+            {
+                cover = user.ProfileCover.FileName;
+            }
+
+            return new UserDTO
+            {
+                Name = user.Name,
+                Email = user.Email,
+                ImageName = file,
+                ImageCover = cover
+            };
+        }
+
+        public async Task UpdateUserByUserDTO(UserUpdateDTO dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.RefreshToken))
+                return;
+
+            User? user = await _UserRepository.GetUserByRefresh(dto.RefreshToken);
+
+            if(user == null)
+                throw new Exception("User not found.");
+
+            if (!string.IsNullOrWhiteSpace(dto.Name))
+                user.Name = dto.Name;
+
+            if (!string.IsNullOrWhiteSpace(dto.Email))
+                user.Email = dto.Email;
+
+            if (!string.IsNullOrWhiteSpace(dto.Password))
+                user.Password = HashService.HashPassword(dto.Password);
+
+            if(dto.File != null)
+            {
+                user.ProfilePicture = await _pictureService.CreatePicture(dto.File);
+                user.ProfilePictureId = user.ProfilePicture.Id;
+            }
+
+            if (dto.Cover != null)
+            {
+                user.ProfileCover = await _pictureService.CreatePicture(dto.Cover);
+                user.ProfileCoverId = user.ProfileCover.Id;
+            }
+
+            await _UserRepository.Update(user);
         }
     }
 }

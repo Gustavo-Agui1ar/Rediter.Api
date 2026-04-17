@@ -22,6 +22,7 @@
     <Folder Include="Infrastructure\" />
     <Folder Include="Utilitaries\" />
     <Folder Include="Validators\" />
+    <Folder Include="wwwroot\uploads\" />
   </ItemGroup>
 
 </Project>

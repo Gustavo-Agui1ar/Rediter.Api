@@ -28,6 +28,12 @@ namespace Rediter.Api.Models
         [ForeignKey(nameof(ProfilePictureId))]
         public virtual Picture? ProfilePicture { get; set; }
 
+        [Column("profile_cover_id")]
+        public int? ProfileCoverId { get; set; }
+
+        [ForeignKey(nameof(ProfileCoverId))]
+        public virtual Picture? ProfileCover { get; set; }
+
         [Column("is_verified")]
         public bool IsVerified { get; set; } = false;
 
