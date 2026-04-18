@@ -85,6 +85,11 @@ namespace Rediter.Api.Services
             return await _UserRepository.Update(user);
         }
 
+        public async Task<User?> GetUserByRefreshToken(string refreshToken)
+        {
+            return await _UserRepository.GetUserByRefresh(refreshToken);
+        }
+
         public async Task<UserDTO> GetUserDtoByRefreshToken(string refreshToken)
         {
             User? user = await _UserRepository.GetUserByRefresh(refreshToken);

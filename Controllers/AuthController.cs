@@ -35,16 +35,16 @@ namespace Rediter.Api.Controllers
         }
 
         [HttpGet("Code")]
-        public async Task<IActionResult> VerifyCode([FromQuery] string code, [FromQuery] string userId)
+        public async Task<IActionResult> VerifyCode([FromQuery] string code, [FromQuery] string userEmail)
         {
-            return await GerarTokensDeAcesso(code, userId);
+            return await GerarTokensDeAcesso(code, userEmail);
         }
 
-        private async Task<IActionResult> GerarTokensDeAcesso(string code, string userId)
+        private async Task<IActionResult> GerarTokensDeAcesso(string code, string userEmail)
         {
             try
             {
-                TokenRequestDTO token = await _authService.VerifyCode(code, userId);
+                TokenRequestDTO token = await _authService.VerifyCode(code, userEmail);
                 return Ok(token);
             }
             catch (Exception ex)

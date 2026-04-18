@@ -1,4 +1,5 @@
-﻿using Rediter.Api.Models;
+﻿using Microsoft.EntityFrameworkCore;
+using Rediter.Api.Models;
 using Rediter.Api.Repositories;
 
 namespace Rediter.Api.Services
@@ -58,6 +59,21 @@ namespace Rediter.Api.Services
                 return null;
 
             return new FileStream(path, FileMode.Open, FileAccess.Read);
+        }
+
+        public async Task CleanUnusedImages()
+        {
+            var unusedPictures = await _pictureRepository.GetUnusedPictures();
+
+            foreach (var pic in unusedPictures)
+            {
+                var path = Path.Combine("wwwroot/uploads", pic.FileName);
+
+                if (File.Exists(path))
+                    File.Delete(path);
+
+                await _pictureRepository.Delete(pic);
+            }
         }
     }
 }

@@ -14,10 +14,9 @@ namespace Rediter.Api.Services
             _tokenService = tokenService;
         }
 
-        public async Task<TokenRequestDTO> VerifyCode(string inputCode, string userId)
+        public async Task<TokenRequestDTO> VerifyCode(string inputCode, string userEmail)
         {
-            Guid uuid = Guid.Parse(userId);
-            User? user = await _userService.GetByUUId(uuid);
+            User? user = await _userService.GetByEmail(userEmail);
 
             if (user == null)
                 throw new Exception("User not found");
