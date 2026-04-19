@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Rediter.Api.Repositories;
 using Rediter.Api.Services;
+using Rediter.Api.Services.UtilitariesServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,19 +16,35 @@ builder.Services.AddDbContext<Rediter.Api.Data.DataContext>(options =>
     options.UseLazyLoadingProxies()
            .UseNpgsql(connectionString));
 
-builder.Services.AddScoped<Rediter.Api.Repositories.UserRepository>();
-builder.Services.AddScoped<Rediter.Api.Repositories.PictureRepository>();
-builder.Services.AddScoped<Rediter.Api.Repositories.Postrepository>();
-
+// Repositórios
+builder.Services.Scan(scan => scan
+    .FromAssemblyOf<UserRepository>()
+    .AddClasses(classes => classes
+        .Where(type =>
+            !type.IsAbstract &&
+            type.BaseType != null &&
+            type.BaseType.IsGenericType &&
+            type.BaseType.GetGenericTypeDefinition() == typeof(BaseRepository<>)
+        )
+    )
+    .AsSelf()
+    .WithScopedLifetime()
+);
 
 //Serviços
-builder.Services.AddScoped<UserService>();
-builder.Services.AddScoped<AuthService>();
-builder.Services.AddScoped<HashService>();
-builder.Services.AddScoped<EmailService>();
-builder.Services.AddScoped<TokenService>();
-builder.Services.AddScoped<PictureService>();
-builder.Services.AddScoped<PostService>();
+builder.Services.Scan(scan => scan
+    .FromAssemblyOf<UserService>()
+    .AddClasses(classes => classes
+        .Where(type =>
+            type.Name.EndsWith("Service") &&
+            type.Name != "BaseService" &&
+            !type.IsAbstract &&
+            !typeof(BackgroundService).IsAssignableFrom(type)
+        )
+    )
+    .AsSelf()
+    .WithScopedLifetime()
+);
 
 //BGServices
 builder.Services.AddHostedService<ImageCleanupBackgroundService>();

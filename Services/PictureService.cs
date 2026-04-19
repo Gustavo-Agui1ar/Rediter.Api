@@ -1,14 +1,15 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Rediter.Api.Models;
 using Rediter.Api.Repositories;
+using Rediter.Api.Services.UtilitariesServices;
 
 namespace Rediter.Api.Services
 {
-    public class PictureService
+    public class PictureService : BaseService<Picture>
     {
         private readonly PictureRepository _pictureRepository;
 
-        public PictureService(PictureRepository pictureRepository)
+        public PictureService(PictureRepository pictureRepository) : base(pictureRepository)
         {
             _pictureRepository = pictureRepository;
         }

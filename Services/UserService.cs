@@ -2,16 +2,17 @@
 using Rediter.Api.DTOs;
 using Rediter.Api.Models;
 using Rediter.Api.Repositories;
+using Rediter.Api.Services.UtilitariesServices;
 
 namespace Rediter.Api.Services
 {
-    public class UserService
+    public class UserService : BaseService<User>
     {
         private readonly UserRepository _UserRepository;
         private readonly PictureService _pictureService;
         private readonly EmailService _emailService;
 
-        public UserService(UserRepository userRepository, EmailService emailService, PictureService pictureService  )
+        public UserService(UserRepository userRepository, EmailService emailService, PictureService pictureService) : base(userRepository)
         {
             _UserRepository = userRepository;
             _emailService = emailService;
@@ -55,34 +56,14 @@ namespace Rediter.Api.Services
             }
         }
 
-        public async Task<bool> DeleteUser(string userId)
-        {
-            User? user = await _UserRepository.GetByUUId(userId);
-
-            if (user == null)
-                throw new Exception("User not found.");
-
-            return (await _UserRepository.Delete(user));
-        }
-
         public string GetUserCode(string userId)
         {
             return _UserRepository.GetCodeById(userId);
         }
 
-        public async Task<User?> GetByUUId(Guid id)
-        {
-            return await _UserRepository.GetByUUId(id);
-        }
-
         public async Task<User?> GetByEmail(string email)
         {
             return await _UserRepository.GetByEmail(email);
-        }
-
-        public async Task<bool> Update(User user)
-        {
-            return await _UserRepository.Update(user);
         }
 
         public async Task<User?> GetUserByRefreshToken(string refreshToken)

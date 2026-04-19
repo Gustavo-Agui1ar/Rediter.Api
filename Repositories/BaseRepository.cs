@@ -89,16 +89,16 @@ namespace Rediter.Api.Repositories
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>
-        public virtual async Task<T?> GetByUUId(object id)
+        public virtual async Task<T?> GetByUuid(Guid uuid)
         {
-            return await _dbSet.FindAsync(id);
+            return await _dbSet.FirstOrDefaultAsync(e => EF.Property<Guid>(e, "id") == uuid);
         }
         /// <summary>
         /// procura classe por id inteiro
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>
-        public virtual async Task<T?> GettByID(int id)
+        public virtual async Task<T?> GetById(int id)
         {
             return await _dbSet.FindAsync(id);
         }

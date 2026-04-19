@@ -6,7 +6,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Rediter.Api.Services
+namespace Rediter.Api.Services.UtilitariesServices
 {
     public class TokenService
     {

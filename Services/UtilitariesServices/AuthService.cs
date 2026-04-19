@@ -2,7 +2,7 @@
 using Rediter.Api.DTOs;
 using Rediter.Api.Models;
 
-namespace Rediter.Api.Services
+namespace Rediter.Api.Services.UtilitariesServices
 {
     public class AuthService
     {
@@ -46,7 +46,7 @@ namespace Rediter.Api.Services
 
             user?.RefreshToken = dto.RefreshToken;
             user?.RefreshTokenExpiration = DateTime.UtcNow.AddDays(30);
-            await _userService.Update(user!);
+            await _userService.UpdateAsync(user!);
             return dto;
         }
     }

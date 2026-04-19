@@ -11,9 +11,17 @@ namespace Rediter.Api.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<User>().Property(u => u.Id).HasDefaultValueSql("gen_random_uuid()");
-
             base.OnModelCreating(modelBuilder);
+
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                var idProperty = entityType.FindProperty("Id");
+
+                if (idProperty != null && idProperty.ClrType == typeof(Guid))
+                {
+                    idProperty.SetDefaultValueSql("gen_random_uuid()");
+                }
+            }
         }
     }
 }

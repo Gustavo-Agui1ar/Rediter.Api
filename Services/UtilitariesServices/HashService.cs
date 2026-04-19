@@ -1,6 +1,4 @@
-﻿
-
-namespace Rediter.Api.Services
+﻿namespace Rediter.Api.Services.UtilitariesServices
 {
     public class HashService
     {

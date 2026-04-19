@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Rediter.Api.DTOs;
-using Rediter.Api.Services;
+using Rediter.Api.Services.UtilitariesServices;
 
 namespace Rediter.Api.Controllers
 {

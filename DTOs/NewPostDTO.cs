@@ -3,7 +3,7 @@
     public class NewPostDTO
     {
         public string RefreshToken { get; set; } = null!;
-        public string Text { get; set; } = null!;
+        public string? Text { get; set; }
         public IList<IFormFile>? Pictures { get; set; }
         public string? LocationName { get; set; }
     }

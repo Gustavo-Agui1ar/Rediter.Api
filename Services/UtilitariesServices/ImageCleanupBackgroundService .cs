@@ -20,7 +20,6 @@ public class ImageCleanupBackgroundService : BackgroundService
             {
                 var pictureService = scope.ServiceProvider
                     .GetRequiredService<PictureService>();
-
                 await pictureService.CleanUnusedImages();
             }
 

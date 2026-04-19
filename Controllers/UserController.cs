@@ -40,7 +40,7 @@ namespace Rediter.Api.Controllers
             {
                 if (string.IsNullOrWhiteSpace(dto.UserId)) return BadRequest("User not found in DB");
 
-                if (!(await _userService.DeleteUser(dto.UserId))) return BadRequest("Failed to delete user.");
+                if (!(await _userService.DeleteByGuidAsync(new Guid(dto.UserId)))) return BadRequest("Failed to delete user.");
 
                 return Ok("User deleted successfully");
             }
