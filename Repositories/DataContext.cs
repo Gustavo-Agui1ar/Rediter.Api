@@ -13,6 +13,15 @@ namespace Rediter.Api.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            var entityTypes = typeof(Picture).Assembly
+                .GetTypes()
+                .Where(t => t.IsClass && !t.IsAbstract && t.Namespace == "Rediter.Api.Models");
+
+            foreach (var type in entityTypes)
+            {
+                modelBuilder.Entity(type);
+            }
+
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
                 var idProperty = entityType.FindProperty("Id");

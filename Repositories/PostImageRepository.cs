@@ -4,7 +4,7 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Rediter.Api.Repositories
 {
-    public class PostImageRepository : BaseRepository<Models.PostImage>
+    public class PostImageRepository : BaseRepository<PostImage>
     {
         public PostImageRepository(DataContext data) : base(data)
         {

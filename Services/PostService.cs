@@ -62,5 +62,94 @@ namespace Rediter.Api.Services
                 }
             }
         }
+
+        public async Task<IList<PostFeedDTO>> GetPostsByUser(string RefreshToken, DateTime? lastCreatedAt, string? lastId, int pageSize)
+        {
+            User? user = await _userservice.GetUserByRefreshToken(RefreshToken);
+
+            if (user == null)
+                throw new Exception("User not found");
+
+            IList<Post> posts = await _postrepository.GetPostsByUser(user.Id.ToString(), lastCreatedAt, lastId, pageSize);
+
+            IList<PostFeedDTO> postFeedDTOs = new List<PostFeedDTO>();
+
+            foreach (var post in posts)
+            {
+                PostFeedDTO dto = new PostFeedDTO
+                {
+                    Id = post.Id.ToString(),
+                    UserName = user.Name,
+                    ImageProfileUrl = user.ProfilePicture != null ? user.ProfilePicture.FileName : null,
+                    Text = post.Content,
+                    Location = post.LocationName,
+                    ImageUrls = post.PostImages != null
+                                ? post.PostImages
+                                    .Select(pi => pi.Picture?.FileName)
+                                    .Where(fileName => fileName != null)
+                                    .ToList()!
+                                : new List<string>(),
+                    Edited = post.CreatedAt != post.UpdatedAt
+                };
+                postFeedDTOs.Add(dto);
+            }
+
+            return postFeedDTOs;
+        }
+
+        public async Task UpdatePost(UpdatePostDTO dto, string postId)
+        {
+            using (var transaction = await _postrepository.BeginTransaction())
+            {
+                try
+                {
+                    Post? post = await _postrepository.GetByUuid(new Guid(postId));
+
+                    if (post == null)
+                        throw new Exception("Post não encontrado");
+
+                    post.Content = dto.Text;
+                    post.LocationName = dto.LocationName;
+                    post.UpdatedAt = DateTime.Now;
+
+                    var retainedNames = dto.RetainedPictures ?? new List<string>();
+
+                    var imagesToRemove = post.PostImages
+                        .Where(pi => pi.Picture != null && !retainedNames.Contains(pi.Picture.FileName))
+                        .ToList();
+
+                    foreach (var piToRemove in imagesToRemove)
+                    {
+                        post.PostImages.Remove(piToRemove);
+                    }
+
+                    if (dto.Pictures != null && dto.Pictures.Count > 0)
+                    {
+                        int order = post.PostImages.Any() ? post.PostImages.Max(pi => pi.DisplayOrder) + 1 : 0;
+
+                        foreach (IFormFile picture in dto.Pictures)
+                        {
+                            Picture pic = await _pictureService.CreatePicture(picture);
+                            PostImage pi = new PostImage
+                            {
+                                PictureId = pic.Id,
+                                DisplayOrder = order++,
+                                CreatedAt = DateTime.Now,
+                            };
+
+                            post.PostImages.Add(pi);
+                        }
+                    }
+
+                    await _postrepository.Update(post);
+                    await transaction.CommitAsync();
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    throw new Exception(ex.Message);
+                }
+            }
+        }
     }
 }

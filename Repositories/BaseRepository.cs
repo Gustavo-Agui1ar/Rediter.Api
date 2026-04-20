@@ -91,7 +91,7 @@ namespace Rediter.Api.Repositories
         /// <returns></returns>
         public virtual async Task<T?> GetByUuid(Guid uuid)
         {
-            return await _dbSet.FirstOrDefaultAsync(e => EF.Property<Guid>(e, "id") == uuid);
+            return await _dbSet.FirstOrDefaultAsync(e => EF.Property<Guid>(e, "Id") == uuid);
         }
         /// <summary>
         /// procura classe por id inteiro
