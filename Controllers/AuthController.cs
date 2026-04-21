@@ -52,5 +52,16 @@ namespace Rediter.Api.Controllers
                 return BadRequest($"An error occurred while verifying the code: {ex.Message}");
             }
         }
+
+        [HttpPost("RefreshToken")]
+        public async Task<IActionResult> RefreshToken([FromBody] string refreshToken)
+        {
+            var result = await _authService.RefreshTokenAsync(refreshToken);
+
+            if (!result.IsSuccess)
+                return Unauthorized(new { message = result.ErrorMessage });
+
+            return Ok(result.Tokens);
+        }
     }
 }

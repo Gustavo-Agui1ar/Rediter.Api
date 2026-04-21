@@ -32,5 +32,16 @@ namespace Rediter.Api.Repositories
                 .FromSqlRaw(sql, refresh)
                 .FirstOrDefaultAsync();
         }
+
+        public async Task<User?> GetUserByAccessToken(string accessToken)
+        {
+            string sql = @"
+                SELECT u.*
+                FROM Users u
+                WHERE u.access_token = {0}";
+            return await _dbSet
+                .FromSqlRaw(sql, accessToken)
+                .FirstOrDefaultAsync();
+        }
     }
 }

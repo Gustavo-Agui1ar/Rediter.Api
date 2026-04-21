@@ -21,39 +21,32 @@ namespace Rediter.Api.Services
 
         public async Task<string> CreateUser(UserDTO dto)
         {
-            try
+            using(var transaction = await _UserRepository.BeginTransaction())
             {
-                User user = new User
+                try
                 {
-                    Name = dto.Name,
-                    Email = dto.Email,
-                    Password = HashService.HashPassword(dto.Password),
-                    CreatedAt = DateTime.UtcNow,
-                    VerificationCode = new Random(DateTime.Now.Millisecond).Next(100000, 999999).ToString()
-                };
+                    if(string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Password))
+                        throw new Exception("Nome, e-mail e senha são obrigatórios.");
 
-
-                await _emailService.SendVerificationCodeAsync(user.Email, user.Name, user.VerificationCode);
-                await _UserRepository.Insert(user);
-                return user.Id.ToString();
-            }
-            catch (Exception ex)
-            {
-                if (ex.InnerException is PostgresException pgEx && pgEx.SqlState == "23505")
-                {
-                    if (pgEx.ConstraintName != null && pgEx.ConstraintName.Contains("email"))
+                    User user = new User
                     {
-                        throw new Exception("Este e-mail já está em uso.");
-                    }
-                    if (pgEx.ConstraintName != null && pgEx.ConstraintName.Contains("name"))
-                    {
-                        throw new Exception("Este nome de usuário já está sendo utilizado.");
-                    }
+                        Name = dto.Name,
+                        Email = dto.Email,
+                        Password = HashService.HashPassword(dto.Password),
+                        CreatedAt = DateTime.UtcNow,
+                        VerificationCode = new Random(DateTime.Now.Millisecond).Next(100000, 999999).ToString()
+                    };
 
-                    throw new Exception("Um registro com estes dados já existe.");
+                    await _emailService.SendVerificationCodeAsync(user.Email, user.Name, user.VerificationCode);
+                    await _UserRepository.Insert(user);
+                    await transaction.CommitAsync();
+                    return user.Id.ToString();
                 }
-                throw new Exception("Ocorreu um erro ao criar o usuário: " + ex.Message);
-            }
+                catch(Exception ex) {
+                    await transaction.RollbackAsync();
+                    throw new Exception("Ocorreu um erro ao criar o usuário: " + ex.Message);
+                }
+             }
         }
 
         public string GetUserCode(string userId)
@@ -71,24 +64,24 @@ namespace Rediter.Api.Services
             return await _UserRepository.GetUserByRefresh(refreshToken);
         }
 
-        public async Task<UserDTO> GetUserDtoByRefreshToken(string refreshToken)
+        public async Task<User?> GetUserByAccessToken(string accessToken)
         {
-            User? user = await _UserRepository.GetUserByRefresh(refreshToken);
+            return await _UserRepository.GetUserByAccessToken(accessToken);
+        }
+
+        public async Task<UserDTO> GetUserDto(User user)
+        {
             if (user == null)
                 throw new Exception("User not found.");
 
-            string file = null;
-            string cover = null;
+            string? file = null;
+            string? cover = null;
 
             if(user.ProfilePicture != null)
-            {
                 file = user.ProfilePicture.FileName;
-            }
 
             if (user.ProfileCover != null)
-            {
                 cover = user.ProfileCover.FileName;
-            }
 
             return new UserDTO
             {
@@ -99,13 +92,8 @@ namespace Rediter.Api.Services
             };
         }
 
-        public async Task UpdateUserByUserDTO(UserUpdateDTO dto)
+        public async Task UpdateUserByUserDTO(UserUpdateDTO dto, User user)
         {
-            if (string.IsNullOrWhiteSpace(dto.RefreshToken))
-                return;
-
-            User? user = await _UserRepository.GetUserByRefresh(dto.RefreshToken);
-
             if(user == null)
                 throw new Exception("User not found.");
 
@@ -118,19 +106,31 @@ namespace Rediter.Api.Services
             if (!string.IsNullOrWhiteSpace(dto.Password))
                 user.Password = HashService.HashPassword(dto.Password);
 
-            if(dto.File != null)
-            {
-                user.ProfilePicture = await _pictureService.CreatePicture(dto.File);
-                user.ProfilePictureId = user.ProfilePicture.Id;
-            }
+            using(var transaction = await _UserRepository.BeginTransaction())
+             {
+                try
+                {
+                    if(dto.File != null)
+                    {
+                        user.ProfilePicture = await _pictureService.CreatePicture(dto.File);
+                        user.ProfilePictureId = user.ProfilePicture.Id;
+                    }
 
-            if (dto.Cover != null)
-            {
-                user.ProfileCover = await _pictureService.CreatePicture(dto.Cover);
-                user.ProfileCoverId = user.ProfileCover.Id;
-            }
+                    if (dto.Cover != null)
+                    {
+                        user.ProfileCover = await _pictureService.CreatePicture(dto.Cover);
+                        user.ProfileCoverId = user.ProfileCover.Id;
+                    }
+                    await _UserRepository.Update(user);
+                    await transaction.CommitAsync();
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
+             }
 
-            await _UserRepository.Update(user);
         }
     }
 }

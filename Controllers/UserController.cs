@@ -1,12 +1,15 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Rediter.Api.DTOs;
+using Rediter.Api.Models;
 using Rediter.Api.Services;
-using System.Diagnostics;
+using System.Security.Claims;
 
 namespace Rediter.Api.Controllers
 {
     [ApiController]
     [Route("User")]
+    [Authorize]
     public class UserController : ControllerBase
     {
         private readonly UserService _userService;
@@ -15,6 +18,7 @@ namespace Rediter.Api.Controllers
             _userService = userService;
         }
 
+        [AllowAnonymous]
         [HttpPut("Register")]
         public async Task<IActionResult> Register([FromBody] UserDTO user)
         {
@@ -51,13 +55,18 @@ namespace Rediter.Api.Controllers
         }
 
         [HttpGet("GetUser")]
-        public async Task<IActionResult> GetUser([FromQuery] TokenRequestDTO tokens)
+        public async Task<IActionResult> GetUser()
         {
             try
             {
-                UserDTO? user = await _userService.GetUserDtoByRefreshToken(tokens.RefreshToken);
+                string? userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                User? user = await _userService.GetByGuidAsync(new Guid(userIdStr!));
 
-                return Ok(user);
+                if (user == null) return BadRequest("User not found in DB");
+
+                UserDTO? userDto = await _userService.GetUserDto(user);
+
+                return Ok(userDto);
             }
             catch (Exception ex)
             {
@@ -70,7 +79,12 @@ namespace Rediter.Api.Controllers
         {
             try
             {
-                await _userService.UpdateUserByUserDTO(dto);
+                string? userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                User? user = await _userService.GetByGuidAsync(new Guid(userIdStr!));
+               
+                if (user == null) return BadRequest("User not found in DB");
+
+                await _userService.UpdateUserByUserDTO(dto, user);
                 return Ok("User profile updated successfully");
             }
             catch (Exception ex)

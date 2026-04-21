@@ -16,35 +16,47 @@ namespace Rediter.Api.Services
 
         public async Task<Picture> CreatePicture(IFormFile file)
         {
-            try
+            var fileName = Guid.NewGuid() + Path.GetExtension(file.FileName);
+            var folder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+            Directory.CreateDirectory(folder);
+
+            var filePath = Path.Combine(folder, fileName);
+            bool fileSavedToDisk = false;
+
+            using (var transaction = await _pictureRepository.BeginTransaction())
             {
-                var fileName = Guid.NewGuid() + Path.GetExtension(file.FileName);
-
-                var folder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-                Directory.CreateDirectory(folder);
-
-                var filePath = Path.Combine(folder, fileName);
-
-                using (var stream = new FileStream(filePath, FileMode.Create))
+                try
                 {
-                    await file.CopyToAsync(stream);
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+                        fileSavedToDisk = true;
+                    }
+
+                    Picture picture = new Picture
+                    {
+                        FileName = fileName,
+                        StoragePath = filePath,
+                        MimeType = file.ContentType,
+                        Size = (int)file.Length
+                    };
+
+                    await _pictureRepository.Insert(picture);
+                    await transaction.CommitAsync();
+
+                    return picture;
                 }
-
-                Picture picture = new Picture
+                catch (Exception ex)
                 {
-                    FileName = fileName,
-                    StoragePath = filePath,
-                    MimeType = file.ContentType,
-                    Size = (int)file.Length
-                };
+                    await transaction.RollbackAsync();
 
-                await _pictureRepository.Insert(picture);
+                    if (fileSavedToDisk && System.IO.File.Exists(filePath))
+                    {
+                        System.IO.File.Delete(filePath);
+                    }
 
-                return picture;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Erro ao salvar imagem: " + ex.Message);
+                    throw new Exception("Erro ao salvar imagem: " + ex.Message);
+                }
             }
         }
 

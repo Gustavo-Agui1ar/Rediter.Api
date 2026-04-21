@@ -17,6 +17,5 @@ namespace Rediter.Api.DTOs
         public string? Password { get; set; }
         public IFormFile? File { get; set; }
         public IFormFile? Cover { get; set; }
-        public string? RefreshToken { get; set; }
     }
 }

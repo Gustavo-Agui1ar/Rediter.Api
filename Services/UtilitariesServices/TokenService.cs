@@ -17,42 +17,47 @@ namespace Rediter.Api.Services.UtilitariesServices
             _config = config;
         }
 
-    public TokenRequestDTO GenerateToken(User user)
-    {
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.ASCII.GetBytes(_config["JwtSettings:Secret"]!);
-
-        var tokenDescriptor = new SecurityTokenDescriptor
+        public TokenRequestDTO GenerateToken(User user)
         {
-            Subject = new ClaimsIdentity(new[]
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var key = Encoding.ASCII.GetBytes(_config["JwtSettings:Secret"]!);
+
+            var tokenDescriptor = new SecurityTokenDescriptor
             {
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.Name, user.Name)
-        }),
-            Expires = DateTime.UtcNow.AddHours(double.Parse(_config["JwtSettings:ExpireHours"]!)),
-            SigningCredentials = new SigningCredentials(
-                new SymmetricSecurityKey(key),
-                SecurityAlgorithms.HmacSha256Signature)
-        };
+                Subject = new ClaimsIdentity(new[]
+                {
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Name, user.Name)
+            }),
+                Expires = DateTime.UtcNow.AddHours(double.Parse(_config["JwtSettings:ExpireHours"]!)),
+                SigningCredentials = new SigningCredentials(
+                    new SymmetricSecurityKey(key),
+                    SecurityAlgorithms.HmacSha256Signature)
+            };
 
-        var accessToken = tokenHandler.CreateToken(tokenDescriptor);
+            var accessToken = tokenHandler.CreateToken(tokenDescriptor);
 
-        var refreshToken = GenerateRefreshToken();
+            var refreshToken = GenerateRefreshToken();
 
-        return new TokenRequestDTO
+            return new TokenRequestDTO
+            {
+                AccessToken = tokenHandler.WriteToken(accessToken),
+                RefreshToken = refreshToken
+            };
+        }
+
+        private string GenerateRefreshToken()
         {
-            AccessToken = tokenHandler.WriteToken(accessToken),
-            RefreshToken = refreshToken
-        };
-    }
+            var randomNumber = new byte[32];
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(randomNumber);
+            return Convert.ToBase64String(randomNumber);
+        }
 
-    private string GenerateRefreshToken()
-    {
-        var randomNumber = new byte[32];
-        using var rng = RandomNumberGenerator.Create();
-        rng.GetBytes(randomNumber);
-        return Convert.ToBase64String(randomNumber);
+        public string GetSecretKey()
+        {
+            return _config["JwtSettings:Secret"]!;
+        }
     }
-}
 }

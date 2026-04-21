@@ -59,5 +59,20 @@ namespace Rediter.Api.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        [HttpDelete("DeletePost/{postId}")]
+        public async Task<IActionResult> DeletePost([FromRoute] string postId)
+        {
+            try
+            {
+                await _postService.DeletePost(postId);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }

@@ -151,5 +151,27 @@ namespace Rediter.Api.Services
                 }
             }
         }
+
+        public async Task DeletePost(string postId)
+        {
+            using (var transaction = await _postrepository.BeginTransaction())
+            {
+                try
+                {
+                    Post? post = await _postrepository.GetByUuid(new Guid(postId));
+                    
+                    if (post == null)
+                        throw new Exception("Post não encontrado");
+
+                    await _postrepository.Delete(post);
+                    await transaction.CommitAsync();
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    throw new Exception("Ocorreu um erro ao deletar o post: " + ex.Message);
+                }
+            }
+        }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using Jose;
 using Rediter.Api.DTOs;
 using Rediter.Api.Models;
+using Rediter.Api.Repositories;
 
 namespace Rediter.Api.Services.UtilitariesServices
 {
@@ -30,13 +31,13 @@ namespace Rediter.Api.Services.UtilitariesServices
         public async Task<TokenRequestDTO> AuthenticateFromRediter(string email, string password)
         {
             User? user = await _userService.GetByEmail(email);
-            
+
             if (user == null)
                 throw new Exception("Invalid email.");
 
             if (!HashService.VerifyPassword(password, user.Password))
                 throw new Exception("Invalid password.");
-            
+
             return await GenerateToken(user);
         }
 
@@ -48,6 +49,20 @@ namespace Rediter.Api.Services.UtilitariesServices
             user?.RefreshTokenExpiration = DateTime.UtcNow.AddDays(30);
             await _userService.UpdateAsync(user!);
             return dto;
+        }
+
+        public async Task<(bool IsSuccess, string ErrorMessage, TokenRequestDTO? Tokens)> RefreshTokenAsync(string refreshToken)
+        {
+            User? user = await _userService.GetUserByRefreshToken(refreshToken);
+
+            if (user == null)
+                return (false, "Invalid Refresh Token. Please login again.", null);
+
+            if (user.RefreshTokenExpiration <= DateTime.UtcNow)
+                return (false, "Refresh Token expired. Please login again.", null);
+
+            var tokens = await GenerateToken(user);
+            return (true, "", tokens);
         }
     }
 }
