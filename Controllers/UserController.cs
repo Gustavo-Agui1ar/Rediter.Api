@@ -37,14 +37,15 @@ namespace Rediter.Api.Controllers
             }
         }
 
-        [HttpDelete("Delete")]
-        public async Task<IActionResult> DeleteUser([FromBody] DeleteRequestDTO dto)
+        [HttpDelete("DeleteAccount")]
+        public async Task<IActionResult> DeleteUser()
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(dto.UserId)) return BadRequest("User not found in DB");
+                string? userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(userIdStr)) return BadRequest("User not found in DB");
 
-                if (!(await _userService.DeleteByGuidAsync(new Guid(dto.UserId)))) return BadRequest("Failed to delete user.");
+                if (!(await _userService.DeleteByGuidAsync(new Guid(userIdStr)))) return BadRequest("Failed to delete user.");
 
                 return Ok("User deleted successfully");
             }

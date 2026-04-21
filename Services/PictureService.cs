@@ -14,6 +14,46 @@ namespace Rediter.Api.Services
             _pictureRepository = pictureRepository;
         }
 
+        public async Task<Picture?> CreateImageFromGoogle(string imageUrl)
+        {
+            try
+            {
+                using (var httpClient = new HttpClient())
+                {
+                    var response = await httpClient.GetAsync(imageUrl);
+                    response.EnsureSuccessStatusCode();
+
+                    var contentType = response.Content.Headers.ContentType?.MediaType;
+                    var fileExtension = contentType switch
+                    {
+                        "image/jpeg" => ".jpg",
+                        "image/png" => ".png",
+                        _ => throw new Exception("Unsupported image type.")
+                    };
+
+                    var fileName = Guid.NewGuid().ToString() + fileExtension;
+
+                    using var internetStream = await response.Content.ReadAsStreamAsync();
+                    using var memoryStream = new MemoryStream();
+                    await internetStream.CopyToAsync(memoryStream);
+
+                    memoryStream.Position = 0;
+
+                    IFormFile formFile = new FormFile(memoryStream, 0, memoryStream.Length, "file", fileName)
+                    {
+                        Headers = new HeaderDictionary(),
+                        ContentType = contentType
+                    };
+
+                    return await CreatePicture(formFile);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error creating image from Google: " + ex.Message);
+            }
+        }
+
         public async Task<Picture> CreatePicture(IFormFile file)
         {
             var fileName = Guid.NewGuid() + Path.GetExtension(file.FileName);

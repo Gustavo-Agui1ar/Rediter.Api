@@ -1,12 +1,15 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Rediter.Api.DTOs;
 using Rediter.Api.Services;
 using System.Diagnostics;
+using System.Security.Claims;
 
 namespace Rediter.Api.Controllers
 {
     [ApiController]
     [Route("Post")]
+    [Authorize]
     public class PostController : ControllerBase
     {
         private readonly PostService _postService;
@@ -20,8 +23,13 @@ namespace Rediter.Api.Controllers
         {
             try
             {
-                await _postService.NewPost(dto);
-                return Ok();
+                string? userUuid = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                if(userUuid == null) 
+                    return BadRequest("User not found in token");
+
+                await _postService.NewPost(dto, userUuid);
+                return Ok("Post created successfully");
             }
             catch (Exception ex)
             {
@@ -31,12 +39,16 @@ namespace Rediter.Api.Controllers
         }
 
         [HttpGet("GetPostUser")]
-        public async Task<IActionResult> GetPostUser([FromQuery] string RefreshToken, [FromQuery] DateTime? lastCreatedAt, [FromQuery] string? lastId, [FromQuery] int pageSize)
+        public async Task<IActionResult> GetPostUser([FromQuery] DateTime? lastCreatedAt, [FromQuery] string? lastId, [FromQuery] int pageSize)
         {
             try
             {
-                var posts = await _postService.GetPostsByUser(RefreshToken, lastCreatedAt, lastId, pageSize);
-                Debug.WriteLine("passei daqui");
+                string? userUuid = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                if(userUuid == null) 
+                    return BadRequest("User not found in token");
+
+                var posts = await _postService.GetPostsByUser(userUuid, lastCreatedAt, lastId, pageSize);
                 return Ok(posts);
             }
             catch (Exception ex)

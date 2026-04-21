@@ -19,7 +19,7 @@ namespace Rediter.Api.Services
             _userservice = userService;
         }
 
-        public async Task NewPost(NewPostDTO dto)
+        public async Task NewPost(NewPostDTO dto, string userUuid)
         {
             using (var transaction = await _postrepository.BeginTransaction())
             {
@@ -27,7 +27,7 @@ namespace Rediter.Api.Services
                 {
                     Post post = new Post();
 
-                    post.User = await _userservice.GetUserByRefreshToken(dto.RefreshToken);
+                    post.User = await _userservice.GetByGuidAsync(new Guid(userUuid));
                     post.CreatedAt = DateTime.Now;
                     post.UpdatedAt = DateTime.Now;
                     post.Content = dto.Text;
@@ -63,9 +63,9 @@ namespace Rediter.Api.Services
             }
         }
 
-        public async Task<IList<PostFeedDTO>> GetPostsByUser(string RefreshToken, DateTime? lastCreatedAt, string? lastId, int pageSize)
+        public async Task<IList<PostFeedDTO>> GetPostsByUser(string userUuid, DateTime? lastCreatedAt, string? lastId, int pageSize)
         {
-            User? user = await _userservice.GetUserByRefreshToken(RefreshToken);
+            User? user = await _userservice.GetByGuidAsync(new Guid(userUuid));
 
             if (user == null)
                 throw new Exception("User not found");

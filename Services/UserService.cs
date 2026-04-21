@@ -21,11 +21,11 @@ namespace Rediter.Api.Services
 
         public async Task<string> CreateUser(UserDTO dto)
         {
-            using(var transaction = await _UserRepository.BeginTransaction())
+            using (var transaction = await _UserRepository.BeginTransaction())
             {
                 try
                 {
-                    if(string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Password))
+                    if (string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Password))
                         throw new Exception("Nome, e-mail e senha são obrigatórios.");
 
                     User user = new User
@@ -42,11 +42,12 @@ namespace Rediter.Api.Services
                     await transaction.CommitAsync();
                     return user.Id.ToString();
                 }
-                catch(Exception ex) {
+                catch (Exception ex)
+                {
                     await transaction.RollbackAsync();
                     throw new Exception("Ocorreu um erro ao criar o usuário: " + ex.Message);
                 }
-             }
+            }
         }
 
         public string GetUserCode(string userId)
@@ -77,7 +78,7 @@ namespace Rediter.Api.Services
             string? file = null;
             string? cover = null;
 
-            if(user.ProfilePicture != null)
+            if (user.ProfilePicture != null)
                 file = user.ProfilePicture.FileName;
 
             if (user.ProfileCover != null)
@@ -94,7 +95,7 @@ namespace Rediter.Api.Services
 
         public async Task UpdateUserByUserDTO(UserUpdateDTO dto, User user)
         {
-            if(user == null)
+            if (user == null)
                 throw new Exception("User not found.");
 
             if (!string.IsNullOrWhiteSpace(dto.Name))
@@ -106,11 +107,11 @@ namespace Rediter.Api.Services
             if (!string.IsNullOrWhiteSpace(dto.Password))
                 user.Password = HashService.HashPassword(dto.Password);
 
-            using(var transaction = await _UserRepository.BeginTransaction())
-             {
+            using (var transaction = await _UserRepository.BeginTransaction())
+            {
                 try
                 {
-                    if(dto.File != null)
+                    if (dto.File != null)
                     {
                         user.ProfilePicture = await _pictureService.CreatePicture(dto.File);
                         user.ProfilePictureId = user.ProfilePicture.Id;
@@ -129,8 +130,26 @@ namespace Rediter.Api.Services
                     await transaction.RollbackAsync();
                     throw;
                 }
-             }
+            }
 
+        }
+
+        public async Task<bool> AddPictureFromGoogle(User user, string pictureUrl)
+        {
+            try
+            {
+                if (user == null)
+                    throw new Exception("User not found.");
+
+                user.ProfilePicture = await _pictureService.CreateImageFromGoogle(pictureUrl);
+                user.ProfilePictureId = user.ProfilePicture!.Id;
+                await _UserRepository.Update(user);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error adding profile picture from Google: " + ex.Message);
+            }
         }
     }
 }

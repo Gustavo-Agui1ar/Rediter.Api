@@ -29,9 +29,17 @@ namespace Rediter.Api.Controllers
         }
 
         [HttpPost("Google")]
-        public IActionResult GoogleAuth()
+        public async Task<IActionResult> GoogleAuth([FromBody] string idToken)
         {
-            return Ok("Google auth successful");
+            try
+            {
+                TokenRequestDTO token = await _authService.AuthenticateFromGoogle(idToken);
+                return Ok(token);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [HttpGet("Code")]

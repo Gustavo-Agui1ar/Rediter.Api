@@ -1,7 +1,6 @@
-﻿using Jose;
+﻿using Google.Apis.Auth;
 using Rediter.Api.DTOs;
 using Rediter.Api.Models;
-using Rediter.Api.Repositories;
 
 namespace Rediter.Api.Services.UtilitariesServices
 {
@@ -9,10 +8,12 @@ namespace Rediter.Api.Services.UtilitariesServices
     {
         private readonly UserService _userService;
         private readonly TokenService _tokenService;
-        public AuthService(UserService userService, TokenService tokenService)
+        private readonly string _googleClientId;
+        public AuthService(UserService userService, TokenService tokenService, IConfiguration config)
         {
             _userService = userService;
             _tokenService = tokenService;
+            _googleClientId = config["GoogleSettings:ClientId"]!;
         }
 
         public async Task<TokenRequestDTO> VerifyCode(string inputCode, string userEmail)
@@ -25,7 +26,7 @@ namespace Rediter.Api.Services.UtilitariesServices
             if (!inputCode.Equals(user?.VerificationCode) && user?.CreatedAt < user?.CreatedAt.AddDays(1))
                 throw new Exception("Invalid verification code.");
 
-            return await GenerateToken(user);
+            return await GenerateToken(user, true);
         }
 
         public async Task<TokenRequestDTO> AuthenticateFromRediter(string email, string password)
@@ -38,15 +39,59 @@ namespace Rediter.Api.Services.UtilitariesServices
             if (!HashService.VerifyPassword(password, user.Password))
                 throw new Exception("Invalid password.");
 
-            return await GenerateToken(user);
+            return await GenerateToken(user, true);
         }
 
-        private async Task<TokenRequestDTO> GenerateToken(User? user)
+        public async Task<TokenRequestDTO> AuthenticateFromGoogle(string idToken)
+        {
+            GoogleJsonWebSignature.Payload payload;
+
+            try
+            {
+                var validationSettings = new GoogleJsonWebSignature.ValidationSettings
+                {
+                    Audience = new[] { _googleClientId }
+                };
+
+                payload = await GoogleJsonWebSignature.ValidateAsync(idToken, validationSettings);
+            }
+            catch (InvalidJwtException)
+            {
+                throw new Exception("Token do Google inválido ou expirado.");
+            }
+
+            string userEmail = payload.Email;
+            string userName = payload.Name;
+
+            User? user = await _userService.GetByEmail(userEmail);
+
+            if (user == null)
+            {
+                user = new User
+                {
+                    Email = userEmail,
+                    Name = userName,
+                    Password = "", 
+                    VerificationCode = "",
+                    CreatedAt = DateTime.UtcNow,
+                };
+
+                await _userService.AddPictureFromGoogle(user!, payload.Picture);
+                await _userService.InsertAsync(user);
+            }
+
+            return await GenerateToken(user, true);
+        }
+
+        private async Task<TokenRequestDTO> GenerateToken(User? user, bool addDays = false)
         {
             TokenRequestDTO dto = _tokenService.GenerateToken(user!);
 
             user?.RefreshToken = dto.RefreshToken;
-            user?.RefreshTokenExpiration = DateTime.UtcNow.AddDays(30);
+
+            if(addDays)
+                user?.RefreshTokenExpiration = DateTime.UtcNow.AddDays(30);
+            
             await _userService.UpdateAsync(user!);
             return dto;
         }
@@ -61,7 +106,7 @@ namespace Rediter.Api.Services.UtilitariesServices
             if (user.RefreshTokenExpiration <= DateTime.UtcNow)
                 return (false, "Refresh Token expired. Please login again.", null);
 
-            var tokens = await GenerateToken(user);
+            TokenRequestDTO tokens = await GenerateToken(user);
             return (true, "", tokens);
         }
     }
