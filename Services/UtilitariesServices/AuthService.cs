@@ -7,12 +7,14 @@ namespace Rediter.Api.Services.UtilitariesServices
     public class AuthService
     {
         private readonly UserService _userService;
+        private readonly EmailService _emailService;
         private readonly TokenService _tokenService;
         private readonly string _googleClientId;
-        public AuthService(UserService userService, TokenService tokenService, IConfiguration config)
+        public AuthService(UserService userService, TokenService tokenService, EmailService emailService ,IConfiguration config)
         {
             _userService = userService;
             _tokenService = tokenService;
+            _emailService = emailService;
             _googleClientId = config["GoogleSettings:ClientId"]!;
         }
 
@@ -27,6 +29,19 @@ namespace Rediter.Api.Services.UtilitariesServices
                 throw new Exception("Invalid verification code.");
 
             return await GenerateToken(user, true);
+        }
+
+        public async Task SendVerificationCode(string email)
+        {
+            User? user = await _userService.GetByEmail(email);
+            if (user == null)
+                throw new Exception("User not found");
+
+            string verificationCode = new Random(DateTime.Now.Millisecond).Next(100000, 999999).ToString();
+            user.VerificationCode = verificationCode;
+            user.CreatedAt = DateTime.UtcNow;
+            await _userService.UpdateAsync(user);
+            await _emailService.SendVerificationCodeAsync(user.Email, user.Name, verificationCode);
         }
 
         public async Task<TokenRequestDTO> AuthenticateFromRediter(string email, string password)

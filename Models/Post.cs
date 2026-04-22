@@ -28,7 +28,6 @@ namespace Rediter.Api.Models
         [Column("updated_at")]
         public DateTime UpdatedAt { get; set; }
 
-        // Propriedade de navegação: Um post tem várias imagens
         public virtual ICollection<PostImage> PostImages { get; set; } = new List<PostImage>();
 
         public Post() { }

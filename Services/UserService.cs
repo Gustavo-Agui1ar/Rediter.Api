@@ -107,31 +107,18 @@ namespace Rediter.Api.Services
             if (!string.IsNullOrWhiteSpace(dto.Password))
                 user.Password = HashService.HashPassword(dto.Password);
 
-            using (var transaction = await _UserRepository.BeginTransaction())
+            if (dto.File != null)
             {
-                try
-                {
-                    if (dto.File != null)
-                    {
-                        user.ProfilePicture = await _pictureService.CreatePicture(dto.File);
-                        user.ProfilePictureId = user.ProfilePicture.Id;
-                    }
-
-                    if (dto.Cover != null)
-                    {
-                        user.ProfileCover = await _pictureService.CreatePicture(dto.Cover);
-                        user.ProfileCoverId = user.ProfileCover.Id;
-                    }
-                    await _UserRepository.Update(user);
-                    await transaction.CommitAsync();
-                }
-                catch
-                {
-                    await transaction.RollbackAsync();
-                    throw;
-                }
+                user.ProfilePicture = await _pictureService.CreatePicture(dto.File);
+                user.ProfilePictureId = user.ProfilePicture.Id;
             }
 
+            if (dto.Cover != null)
+            {
+                user.ProfileCover = await _pictureService.CreatePicture(dto.Cover);
+                user.ProfileCoverId = user.ProfileCover.Id;
+            }
+            await _UserRepository.Update(user);
         }
 
         public async Task<bool> AddPictureFromGoogle(User user, string pictureUrl)

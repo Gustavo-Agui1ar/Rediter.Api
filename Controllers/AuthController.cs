@@ -19,6 +19,9 @@ namespace Rediter.Api.Controllers
         {
             try
             {
+                if(string.IsNullOrEmpty(user.Email) || string.IsNullOrEmpty(user.Password))
+                    return BadRequest("Email and password are required.");
+
                 TokenRequestDTO token = await _authService.AuthenticateFromRediter(user.Email, user.Password);
                 return Ok(token);
             }
@@ -29,11 +32,11 @@ namespace Rediter.Api.Controllers
         }
 
         [HttpPost("Google")]
-        public async Task<IActionResult> GoogleAuth([FromBody] string idToken)
+        public async Task<IActionResult> GoogleAuth([FromBody] GoogleLoginRequestDTO dto)
         {
             try
             {
-                TokenRequestDTO token = await _authService.AuthenticateFromGoogle(idToken);
+                TokenRequestDTO token = await _authService.AuthenticateFromGoogle(dto.IdToken);
                 return Ok(token);
             }
             catch (Exception ex)
@@ -46,6 +49,20 @@ namespace Rediter.Api.Controllers
         public async Task<IActionResult> VerifyCode([FromQuery] string code, [FromQuery] string userEmail)
         {
             return await GerarTokensDeAcesso(code, userEmail);
+        }
+
+        [HttpPost("GenerateCode")]
+        public async Task<IActionResult> GenerateCode([FromBody] string userEmail)
+        {
+            try
+            {
+                await _authService.SendVerificationCode(userEmail);
+                return Ok("Verification code sent to email.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"An error occurred while sending the verification code: {ex.Message}");
+            }
         }
 
         private async Task<IActionResult> GerarTokensDeAcesso(string code, string userEmail)

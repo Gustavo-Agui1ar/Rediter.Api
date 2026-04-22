@@ -21,13 +21,11 @@ namespace Rediter.Api.Services
 
         public async Task NewPost(NewPostDTO dto, string userUuid)
         {
-            using (var transaction = await _postrepository.BeginTransaction())
-            {
                 try
                 {
                     Post post = new Post();
 
-                    post.User = await _userservice.GetByGuidAsync(new Guid(userUuid));
+                    post.UserId = Guid.Parse(userUuid);
                     post.CreatedAt = DateTime.Now;
                     post.UpdatedAt = DateTime.Now;
                     post.Content = dto.Text;
@@ -51,16 +49,13 @@ namespace Rediter.Api.Services
                         }
                     }
                     await _postrepository.Insert(post);
-                    await transaction.CommitAsync();
 
                 }
                 catch (Exception ex)
                 {
                     Debug.WriteLine(ex);
-                    await transaction.RollbackAsync();
                     throw new Exception(ex.Message);
                 }
-            }
         }
 
         public async Task<IList<PostFeedDTO>> GetPostsByUser(string userUuid, DateTime? lastCreatedAt, string? lastId, int pageSize)
