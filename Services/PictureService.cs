@@ -1,7 +1,11 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.EntityFrameworkCore;
 using Rediter.Api.Models;
 using Rediter.Api.Repositories;
 using Rediter.Api.Services.UtilitariesServices;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Formats.Png;
 
 namespace Rediter.Api.Services
 {
@@ -100,18 +104,73 @@ namespace Rediter.Api.Services
             }
         }
 
-        public async Task<Stream?> GetPictureStream(string? name)
+        public async Task<(Stream? Stream, string? ContentType)> GetPictureStream(string? name, int compressionLevel = 100)
         {
+            if (string.IsNullOrWhiteSpace(name))
+                return (null, null);
 
-            if (string.IsNullOrEmpty(name))
-                return null;
-
-            var path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", name);
+            var fileName = Path.GetFileName(name);
+            var path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", fileName);
 
             if (!File.Exists(path))
-                return null;
+                return (null, null);
 
-            return new FileStream(path, FileMode.Open, FileAccess.Read);
+            var provider = new FileExtensionContentTypeProvider();
+            if (!provider.TryGetContentType(path, out var contentType))
+                contentType = "application/octet-stream";
+
+            if (!contentType.StartsWith("image/"))
+            {
+                var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 4096, useAsync: true);
+                return (fileStream, contentType);
+            }
+
+            var extension = Path.GetExtension(path).ToLowerInvariant();
+            var outputStream = new MemoryStream();
+            string finalContentType;
+
+            using (var image = await Image.LoadAsync(path))
+            {
+                switch (extension)
+                {
+                    case ".png":
+                        await CompressPngAsync(image, outputStream);
+                        finalContentType = "image/png";
+                        break;
+                    case ".jpg":
+                    case ".jpeg":
+                        await CompressJpegAsync(image, outputStream, compressionLevel);
+                        finalContentType = "image/jpeg";
+                        break;
+                    default:
+                        throw new ArgumentException("Unsupported image format");
+                }
+            }
+
+            outputStream.Position = 0;
+
+            return (outputStream, finalContentType);
+        }
+
+        private async Task CompressPngAsync(Image image, Stream outputStream)
+        {
+            var encoder = new PngEncoder
+            {
+                CompressionLevel = PngCompressionLevel.BestCompression,
+                IgnoreMetadata = true
+            };
+
+            await image.SaveAsPngAsync(outputStream, encoder);
+        }
+
+        private async Task CompressJpegAsync(Image image, Stream outputStream, int compressionLevel)
+        {
+            var encoder = new JpegEncoder
+            {
+                Quality = Math.Clamp(compressionLevel, 1, 100)
+            };
+
+            await image.SaveAsJpegAsync(outputStream, encoder);
         }
 
         public async Task CleanUnusedImages()
@@ -128,5 +187,6 @@ namespace Rediter.Api.Services
                 await _pictureRepository.Delete(pic);
             }
         }
+
     }
 }

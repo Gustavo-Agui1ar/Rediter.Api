@@ -11,5 +11,6 @@ namespace Rediter.Api.DTOs
         public IList<string> ImageUrls { get; set; } = new List<string>();
         public string? Location { get; set; }
         public bool Edited { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 }

@@ -44,5 +44,24 @@ namespace Rediter.Api.Repositories
                 .AsNoTracking()
                 .ToListAsync();
         }
+
+        public async Task<IList<string>> GetAllMidiaNames(string userId) {
+            string sql = @"
+                SELECT pic.file_name
+                FROM Posts p
+                JOIN post_images pi ON p.id = pi.post_id
+                JOIN Pictures pic ON pi.picture_id = pic.id
+                WHERE p.user_id = @userId
+                ORDER BY pi.created_at DESC;";
+            
+            var parameters = new[]
+            {
+                new Npgsql.NpgsqlParameter("userId", Guid.Parse(userId))
+            };
+
+            return await _context.Database
+                .SqlQueryRaw<string>(sql, parameters)
+                .ToListAsync();
+        }
     }
 }

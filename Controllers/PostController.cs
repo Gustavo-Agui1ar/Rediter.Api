@@ -86,5 +86,24 @@ namespace Rediter.Api.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        [HttpGet("GetMyMidiaNames")]
+        public async Task<IActionResult> GetMyMidiaNames()
+        {
+            try
+            {
+                var userUuid = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                if(userUuid == null)
+                    return BadRequest("User not found in token");
+
+                IList<string> midias = await _postService.GetAllMidiaNames(userUuid);
+                return Ok(midias);
+
+            } catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }

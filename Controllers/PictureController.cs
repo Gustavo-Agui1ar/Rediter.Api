@@ -16,13 +16,17 @@ namespace Rediter.Api.Controllers
         }
 
         [HttpGet("GetPicture")]
-        public async Task<IActionResult> GetPicture([FromQuery] string name)
+        public async Task<IActionResult> GetPicture([FromQuery] string name, [FromQuery] int compressionLevel = 100)
         {
-            var stream = await _pictureService.GetPictureStream(name);
-            if (stream == null)
+            if (string.IsNullOrWhiteSpace(name))
+                return BadRequest("O nome da imagem é obrigatório.");
+
+            (Stream? stream, string? contentType)= await _pictureService.GetPictureStream(  name, compressionLevel);
+
+            if (stream == null || contentType == null)
                 return NotFound("Imagem não encontrada.");
 
-            return File(stream, "application/octet-stream", name);
+            return File(stream, contentType, name);
         }
     }
 }
