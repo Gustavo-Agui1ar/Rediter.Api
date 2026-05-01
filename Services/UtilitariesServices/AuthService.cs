@@ -10,17 +10,19 @@ namespace Rediter.Api.Services.UtilitariesServices
         private readonly EmailService _emailService;
         private readonly TokenService _tokenService;
         private readonly string _googleClientId;
-        public AuthService(UserService userService, TokenService tokenService, EmailService emailService ,IConfiguration config)
+        private readonly ILogger<AuthService> _logger;
+        public AuthService(UserService userService, TokenService tokenService, EmailService emailService ,IConfiguration config, ILogger<AuthService> logger)
         {
             _userService = userService;
             _tokenService = tokenService;
             _emailService = emailService;
             _googleClientId = config["GoogleSettings:ClientId"]!;
+            _logger = logger;
         }
 
         public async Task<TokenRequestDTO> VerifyCode(string inputCode, string userEmail)
         {
-            User? user = await _userService.GetByEmail(userEmail);
+            User? user = await _userService.GetByEmailAsync(userEmail);
 
             if (user == null)
                 throw new Exception("User not found");
@@ -33,7 +35,7 @@ namespace Rediter.Api.Services.UtilitariesServices
 
         public async Task SendVerificationCode(string email)
         {
-            User? user = await _userService.GetByEmail(email);
+            User? user = await _userService.GetByEmailAsync(email);
             if (user == null)
                 throw new Exception("User not found");
 
@@ -46,7 +48,7 @@ namespace Rediter.Api.Services.UtilitariesServices
 
         public async Task<TokenRequestDTO> AuthenticateFromRediter(string email, string password)
         {
-            User? user = await _userService.GetByEmail(email);
+            User? user = await _userService.GetByEmailAsync(email);
 
             if (user == null)
                 throw new Exception("Invalid email.");
@@ -70,15 +72,18 @@ namespace Rediter.Api.Services.UtilitariesServices
 
                 payload = await GoogleJsonWebSignature.ValidateAsync(idToken, validationSettings);
             }
-            catch (InvalidJwtException)
+            catch (InvalidJwtException ex)
             {
-                throw new Exception("Token do Google inválido ou expirado.");
+                _logger.LogError(ex,
+                    "[Auth] Erro real Google JWT");
+
+                throw;
             }
 
             string userEmail = payload.Email;
             string userName = payload.Name;
 
-            User? user = await _userService.GetByEmail(userEmail);
+            User? user = await _userService.GetByEmailAsync(userEmail);
 
             if (user == null)
             {
@@ -113,7 +118,7 @@ namespace Rediter.Api.Services.UtilitariesServices
 
         public async Task<(bool IsSuccess, string ErrorMessage, TokenRequestDTO? Tokens)> RefreshTokenAsync(string refreshToken)
         {
-            User? user = await _userService.GetUserByRefreshToken(refreshToken);
+            User? user = await _userService.GetUserByRefreshAsync(refreshToken);
 
             if (user == null)
                 return (false, "Invalid Refresh Token. Please login again.", null);

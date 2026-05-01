@@ -3,7 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using Oracle.EntityFrameworkCore.Metadata;
 using Rediter.Api.Data;
 
 #nullable disable
@@ -21,101 +21,101 @@ namespace Rediter.Api.Migrations
                 .HasAnnotation("Proxies:ChangeTracking", false)
                 .HasAnnotation("Proxies:CheckEquality", false)
                 .HasAnnotation("Proxies:LazyLoading", true)
-                .HasAnnotation("Relational:MaxIdentifierLength", 63);
+                .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
-            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+            OracleModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
             modelBuilder.Entity("Rediter.Api.Models.Picture", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
+                        .HasColumnType("NUMBER(10)")
+                        .HasColumnName("ID");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    OraclePropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("FileName")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("file_name");
+                        .HasColumnType("NVARCHAR2(2000)")
+                        .HasColumnName("FILE_NAME");
 
                     b.Property<string>("MimeType")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("mime_type");
+                        .HasColumnType("NVARCHAR2(2000)")
+                        .HasColumnName("MIME_TYPE");
 
                     b.Property<int>("Size")
-                        .HasColumnType("integer")
-                        .HasColumnName("file_size_bytes");
+                        .HasColumnType("NUMBER(10)")
+                        .HasColumnName("FILE_SIZE_BYTES");
 
                     b.Property<string>("StoragePath")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("storage_path");
+                        .HasColumnType("NVARCHAR2(2000)")
+                        .HasColumnName("STORAGE_PATH");
 
                     b.HasKey("Id");
 
-                    b.ToTable("pictures");
+                    b.ToTable("PICTURES");
                 });
 
             modelBuilder.Entity("Rediter.Api.Models.Post", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("gen_random_uuid()");
+                        .HasColumnType("RAW(16)")
+                        .HasColumnName("ID");
 
                     b.Property<string>("Content")
-                        .HasColumnType("text")
-                        .HasColumnName("content");
+                        .HasColumnType("NVARCHAR2(2000)")
+                        .HasColumnName("CONTENT");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at");
+                        .HasColumnType("TIMESTAMP(7)")
+                        .HasColumnName("CREATED_AT");
 
                     b.Property<string>("LocationName")
-                        .HasColumnType("text")
-                        .HasColumnName("location_name");
+                        .HasColumnType("NVARCHAR2(2000)")
+                        .HasColumnName("LOCATION_NAME");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at");
+                        .HasColumnType("TIMESTAMP(7)")
+                        .HasColumnName("UPDATED_AT");
 
                     b.Property<Guid>("UserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("user_id");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("RAW(16)")
+                        .HasColumnName("USER_ID");
 
                     b.HasKey("Id");
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("posts");
+                    b.ToTable("POSTS");
                 });
 
             modelBuilder.Entity("Rediter.Api.Models.PostImage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("gen_random_uuid()");
+                        .HasColumnType("RAW(16)")
+                        .HasColumnName("ID");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at");
+                        .HasColumnType("TIMESTAMP(7)")
+                        .HasColumnName("CREATED_AT");
 
                     b.Property<int>("DisplayOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("display_order");
+                        .HasColumnType("NUMBER(10)")
+                        .HasColumnName("DISPLAY_ORDER");
 
                     b.Property<int>("PictureId")
-                        .HasColumnType("integer")
-                        .HasColumnName("picture_id");
+                        .HasColumnType("NUMBER(10)")
+                        .HasColumnName("PICTURE_ID");
 
                     b.Property<Guid>("PostId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("post_id");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("RAW(16)")
+                        .HasColumnName("POST_ID");
 
                     b.HasKey("Id");
 
@@ -123,59 +123,57 @@ namespace Rediter.Api.Migrations
 
                     b.HasIndex("PostId");
 
-                    b.ToTable("post_images");
+                    b.ToTable("POST_IMAGES");
                 });
 
             modelBuilder.Entity("Rediter.Api.Models.User", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("gen_random_uuid()");
+                        .HasColumnType("RAW(16)")
+                        .HasColumnName("ID");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at");
+                        .HasColumnType("TIMESTAMP(7)")
+                        .HasColumnName("CREATED_AT");
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("email");
+                        .HasColumnType("NVARCHAR2(2000)")
+                        .HasColumnName("EMAIL");
 
                     b.Property<bool>("IsVerified")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_verified");
+                        .HasColumnType("NUMBER(1)")
+                        .HasColumnName("IS_VERIFIED");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("name");
+                        .HasColumnType("NVARCHAR2(2000)")
+                        .HasColumnName("NAME");
 
                     b.Property<string>("Password")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("password");
+                        .HasColumnType("NVARCHAR2(2000)")
+                        .HasColumnName("PASSWORD");
 
                     b.Property<int?>("ProfileCoverId")
-                        .HasColumnType("integer")
-                        .HasColumnName("profile_cover_id");
+                        .HasColumnType("NUMBER(10)")
+                        .HasColumnName("PROFILE_COVER_ID");
 
                     b.Property<int?>("ProfilePictureId")
-                        .HasColumnType("integer")
-                        .HasColumnName("profile_picture_id");
+                        .HasColumnType("NUMBER(10)")
+                        .HasColumnName("PROFILE_PICTURE_ID");
 
                     b.Property<string>("RefreshToken")
-                        .HasColumnType("text")
-                        .HasColumnName("refresh_token");
+                        .HasColumnType("NVARCHAR2(2000)")
+                        .HasColumnName("REFRESH_TOKEN");
 
                     b.Property<DateTime?>("RefreshTokenExpiration")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("refresh_token_expiration");
+                        .HasColumnType("TIMESTAMP(7)")
+                        .HasColumnName("REFRESH_TOKEN_EXPIRATION");
 
                     b.Property<string>("VerificationCode")
-                        .HasColumnType("text")
-                        .HasColumnName("verification_code");
+                        .HasColumnType("NVARCHAR2(2000)")
+                        .HasColumnName("VERIFICATION_CODE");
 
                     b.HasKey("Id");
 
@@ -183,7 +181,7 @@ namespace Rediter.Api.Migrations
 
                     b.HasIndex("ProfilePictureId");
 
-                    b.ToTable("users");
+                    b.ToTable("USERS");
                 });
 
             modelBuilder.Entity("Rediter.Api.Models.Post", b =>

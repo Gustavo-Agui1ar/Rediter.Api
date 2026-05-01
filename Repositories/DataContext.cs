@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ValueGeneration; // Necessário para o GuidValueGenerator
 using Rediter.Api.Models;
 
 namespace Rediter.Api.Data
@@ -24,11 +25,23 @@ namespace Rediter.Api.Data
 
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
-                var idProperty = entityType.FindProperty("Id");
+                entityType.SetTableName(entityType.GetTableName()?.ToUpper());
 
-                if (idProperty != null && idProperty.ClrType == typeof(Guid))
+                foreach (var property in entityType.GetProperties())
                 {
-                    idProperty.SetDefaultValueSql("gen_random_uuid()");
+                    property.SetColumnName(property.GetColumnName().ToUpper());
+
+                    if (property.ClrType == typeof(Guid))
+                    {
+                        property.SetColumnType("RAW(16)");
+                        property.ValueGenerated = Microsoft.EntityFrameworkCore.Metadata.ValueGenerated.OnAdd;
+                        property.SetValueGeneratorFactory((_, __) => new GuidValueGenerator());
+                    }
+
+                    if (property.ClrType == typeof(bool))
+                    {
+                        property.SetColumnType("NUMBER(1)");
+                    }
                 }
             }
         }

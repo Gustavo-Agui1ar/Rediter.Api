@@ -19,48 +19,37 @@ namespace Rediter.Api.Repositories
             string? lastId,
             int pageSize)
         {
-            string sql = @"
-                SELECT p.*
-                FROM Posts p
-                WHERE p.user_id = @userId
-                    AND (
-                        @lastCreatedAt::timestamp IS NULL
-                        OR p.created_at < @lastCreatedAt::timestamp
-                        OR (p.created_at = @lastCreatedAt::timestamp AND p.id < @lastId::uuid)
-                        )
-                ORDER BY p.created_at DESC, p.id DESC
-                LIMIT @pageSize;";
+            var parsedUserId = Guid.Parse(userId);
+            var query = _dbSet.AsNoTracking().Where(p => p.UserId == parsedUserId);
 
-            var parameters = new[]
+            if (lastCreatedAt.HasValue && !string.IsNullOrEmpty(lastId))
             {
-                new Npgsql.NpgsqlParameter("userId", Guid.Parse(userId)),
-                new Npgsql.NpgsqlParameter("lastCreatedAt", (object?)lastCreatedAt ?? DBNull.Value),
-                new Npgsql.NpgsqlParameter("lastId", lastId != null ? Guid.Parse(lastId) : DBNull.Value),
-                new Npgsql.NpgsqlParameter("pageSize", pageSize)
-            };
+                var parsedLastId = Guid.Parse(lastId);
 
-            return await _dbSet
-                .FromSqlRaw(sql, parameters)
-                .AsNoTracking()
+                query = query.Where(p =>
+                    p.CreatedAt < lastCreatedAt.Value ||
+                    (p.CreatedAt == lastCreatedAt.Value && p.Id.CompareTo(parsedLastId) < 0)
+                );
+            }
+
+            return await query
+                .OrderByDescending(p => p.CreatedAt)
+                .ThenByDescending(p => p.Id)
+                .Take(pageSize)
                 .ToListAsync();
         }
 
-        public async Task<IList<string>> GetAllMidiaNames(string userId) {
-            string sql = @"
-                SELECT pic.file_name
-                FROM Posts p
-                JOIN post_images pi ON p.id = pi.post_id
-                JOIN Pictures pic ON pi.picture_id = pic.id
-                WHERE p.user_id = @userId
-                ORDER BY pi.created_at DESC;";
-            
-            var parameters = new[]
-            {
-                new Npgsql.NpgsqlParameter("userId", Guid.Parse(userId))
-            };
+        public async Task<IList<string>> GetAllMidiaNames(string userId)
+        {
+            var parsedUserId = Guid.Parse(userId);
 
-            return await _context.Database
-                .SqlQueryRaw<string>(sql, parameters)
+            return await _dbSet
+                .AsNoTracking()
+                .Where(p => p.UserId == parsedUserId)
+                .SelectMany(p => p.PostImages)
+                .Where(pi => pi.Picture != null)
+                .OrderByDescending(pi => pi.CreatedAt)
+                .Select(pi => pi.Picture!.FileName)
                 .ToListAsync();
         }
     }

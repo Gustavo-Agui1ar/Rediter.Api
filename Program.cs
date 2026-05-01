@@ -2,22 +2,48 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Rediter.Api.Repositories;
+using Rediter.Api.Infrastructure;
 using Rediter.Api.Services;
 using Rediter.Api.Services.UtilitariesServices;
+using Oracle.ManagedDataAccess.Client;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Logging.AddSimpleConsole(options =>
+{
+    options.TimestampFormat = "[yyyy-MM-dd HH:mm:ss] ";
+    options.SingleLine = true;
+});
+
+// HttpClient
+builder.Services.AddHttpClient();
+
+// Controllers
 builder.Services.AddControllers();
 
 // OpenAPI (Swagger)
 builder.Services.AddOpenApi();
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+// Configuração de Conexão: Local vs Cloud
+string connectionString;
+
+if (builder.Environment.IsDevelopment())
+{
+    connectionString = builder.Configuration.GetConnectionString("OracleDb")!;
+}
+else
+{
+    connectionString = builder.Configuration.GetConnectionString("OracleCloudDb")!;
+    string walletPath = builder.Configuration["OracleWalletPath"]!;
+
+    OracleConfiguration.TnsAdmin = walletPath;
+    OracleConfiguration.WalletLocation = walletPath;
+}
 
 builder.Services.AddDbContext<Rediter.Api.Data.DataContext>(options =>
     options.UseLazyLoadingProxies()
-           .UseNpgsql(connectionString));
+           .UseOracle(connectionString, b => b.UseOracleSQLCompatibility(OracleSQLCompatibility.DatabaseVersion21)));
 
 // Repositórios
 builder.Services.Scan(scan => scan
@@ -31,10 +57,9 @@ builder.Services.Scan(scan => scan
         )
     )
     .AsSelf()
-    .WithScopedLifetime()
-);
+    .WithScopedLifetime());
 
-//Serviços
+// Serviços
 builder.Services.Scan(scan => scan
     .FromAssemblyOf<UserService>()
     .AddClasses(classes => classes
@@ -46,15 +71,13 @@ builder.Services.Scan(scan => scan
         )
     )
     .AsSelf()
-    .WithScopedLifetime()
-);
+    .WithScopedLifetime());
 
-//BGServices
+// BGServices
 builder.Services.AddHostedService<ImageCleanupBackgroundService>();
 
-//Autenticacao
+// Autenticacao
 var key = Encoding.ASCII.GetBytes(builder.Configuration["JwtSettings:Secret"]!);
-
 builder.Services.AddAuthentication(x =>
 {
     x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -62,18 +85,16 @@ builder.Services.AddAuthentication(x =>
 })
 .AddJwtBearer(x =>
 {
-    x.RequireHttpsMetadata = false; 
+    x.RequireHttpsMetadata = false;
     x.SaveToken = true;
     x.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(key),
-        ValidateIssuer = false, 
-        ValidateAudience = false 
+        ValidateIssuer = false,
+        ValidateAudience = false
     };
 });
-
-AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var app = builder.Build();
 
@@ -83,9 +104,10 @@ if (app.Environment.IsDevelopment())
 }
 
 //app.UseHttpsRedirection();
-app.UseAuthentication(); 
+app.UseAuthentication();
 app.UseAuthorization();
 
+// Execução de Migrations
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<Rediter.Api.Data.DataContext>();

@@ -50,24 +50,19 @@ namespace Rediter.Api.Services
             }
         }
 
-        public string GetUserCode(string userId)
+        public async Task<string> GetUserCodeAsync(string userId)
         {
-            return _UserRepository.GetCodeById(userId);
+            return await _UserRepository.GetCodeByIdAsync(userId);
         }
 
-        public async Task<User?> GetByEmail(string email)
+        public async Task<User?> GetByEmailAsync(string email)
         {
-            return await _UserRepository.GetByEmail(email);
+            return await _UserRepository.GetByEmailAsync(email);
         }
 
-        public async Task<User?> GetUserByRefreshToken(string refreshToken)
+        public async Task<User?> GetUserByRefreshAsync(string refreshToken)
         {
-            return await _UserRepository.GetUserByRefresh(refreshToken);
-        }
-
-        public async Task<User?> GetUserByAccessToken(string accessToken)
-        {
-            return await _UserRepository.GetUserByAccessToken(accessToken);
+            return await _UserRepository.GetUserByRefreshAsync(refreshToken);
         }
 
         public async Task<UserDTO> GetUserDto(User user)

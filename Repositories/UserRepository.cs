@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Rediter.Api.Data;
 using Rediter.Api.DTOs;
 using Rediter.Api.Models;
@@ -10,38 +12,31 @@ namespace Rediter.Api.Repositories
         public UserRepository(DataContext data) : base(data)
         {
         }
-        public string GetCodeById(string userId)
+
+        public async Task<string> GetCodeByIdAsync(string userId)
         {
-            User? user = _dbSet.Find(Guid.Parse(userId));
-            return user?.VerificationCode ?? string.Empty;
+            if (!Guid.TryParse(userId, out var parsedId))
+                return string.Empty; 
+
+            var code = await _dbSet
+                .AsNoTracking() 
+                .Where(u => u.Id == parsedId)
+                .Select(u => u.VerificationCode) 
+                .FirstOrDefaultAsync();
+
+            return code ?? string.Empty;
         }
 
-        public async Task<User?> GetByEmail(string email)
+        public async Task<User?> GetByEmailAsync(string email)
         {
-            string sql = "SELECT * FROM Users WHERE Email = {0}";
-
             return await _dbSet
-                .FromSqlRaw(sql, email)
-                .FirstOrDefaultAsync();
-        }
-        public async Task<User?> GetUserByRefresh(string refresh)
-        {
-            string sql = "SELECT * FROM Users WHERE refresh_token = {0}";
-
-            return await _dbSet
-                .FromSqlRaw(sql, refresh)
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(u => u.Email == email);
         }
 
-        public async Task<User?> GetUserByAccessToken(string accessToken)
+        public async Task<User?> GetUserByRefreshAsync(string refresh)
         {
-            string sql = @"
-                SELECT u.*
-                FROM Users u
-                WHERE u.access_token = {0}";
             return await _dbSet
-                .FromSqlRaw(sql, accessToken)
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(u => u.RefreshToken == refresh);
         }
     }
 }

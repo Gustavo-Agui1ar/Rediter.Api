@@ -26,6 +26,7 @@ namespace Rediter.Api.Repositories
 
             return await _dbSet
                 .FromSqlRaw(sql)
+                .AsNoTracking()
                 .ToListAsync();
         }
     }
