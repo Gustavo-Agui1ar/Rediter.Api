@@ -1,32 +1,83 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Rediter.Api.Services;
 
-namespace Rediter.Api.Controllers
+namespace Rediter.Api.Controllers;
+
+[ApiController]
+[Route("api/pictures")]
+public class PictureController : ControllerBase
 {
-    [ApiController]
-    [Route("Picture")]
-    public class PictureController : ControllerBase
+    private readonly PictureService _pictureService;
+    private readonly ILogger<PictureController> _logger;
+
+    public PictureController(
+        PictureService pictureService,
+        ILogger<PictureController> logger)
     {
-        private readonly PictureService _pictureService;
+        _pictureService = pictureService;
+        _logger = logger;
+    }
 
-        public PictureController(PictureService pictureService)
+    /// <summary>
+    /// Retorna uma imagem pelo nome
+    /// </summary>
+    [HttpGet("{name}")]
+    public async Task<IActionResult> GetByName(
+        [FromRoute] string name)
+    {
+        try
         {
-            _pictureService = pictureService;
-        }
+            _logger.LogInformation(
+                "[Picture] Buscando imagem: {ImageName}",
+                name
+            );
 
-        [HttpGet("GetPicture")]
-        public async Task<IActionResult> GetPicture([FromQuery] string name)
-        {
             if (string.IsNullOrWhiteSpace(name))
-                return BadRequest("O nome da imagem é obrigatório.");
+            {
+                return BadRequest(new
+                {
+                    message = "O nome da imagem é obrigatório."
+                });
+            }
 
-            (Stream? stream, string? contentType)= await _pictureService.GetPictureStream(name);
+            (Stream? stream, string? contentType) =
+                await _pictureService.GetPictureStream(name);
 
-            if (stream == null || contentType == null)
-                return NotFound("Imagem não encontrada.");
+            if (stream is null || contentType is null)
+            {
+                _logger.LogWarning(
+                    "[Picture] Imagem não encontrada: {ImageName}",
+                    name
+                );
 
-            return File(stream, contentType, name);
+                return NotFound(new
+                {
+                    message = "Imagem não encontrada."
+                });
+            }
+
+            _logger.LogInformation(
+                "[Picture] Imagem encontrada: {ImageName}",
+                name
+            );
+
+            return File(
+                fileStream: stream,
+                contentType: contentType
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "[Picture] Erro ao buscar imagem: {ImageName}",
+                name
+            );
+
+            return StatusCode(500, new
+            {
+                message = "Erro interno ao buscar imagem."
+            });
         }
     }
 }

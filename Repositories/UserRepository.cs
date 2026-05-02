@@ -38,5 +38,6 @@ namespace Rediter.Api.Repositories
             return await _dbSet
                 .FirstOrDefaultAsync(u => u.RefreshToken == refresh);
         }
+
     }
 }

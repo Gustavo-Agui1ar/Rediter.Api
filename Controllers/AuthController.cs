@@ -3,136 +3,240 @@ using Microsoft.AspNetCore.Mvc;
 using Rediter.Api.DTOs;
 using Rediter.Api.Services.UtilitariesServices;
 
-namespace Rediter.Api.Controllers
+namespace Rediter.Api.Controllers;
+
+[ApiController]
+[Route("api/auth")]
+public class AuthController : ControllerBase
 {
-    [ApiController]
-    [Route("Auth")] // Mantive "Auth" para não quebrar a URL base do seu front-end
-    public class AuthController : ControllerBase
+    private readonly AuthService _authService;
+    private readonly ILogger<AuthController> _logger;
+
+    public AuthController(
+        AuthService authService,
+        ILogger<AuthController> logger)
     {
-        private readonly AuthService _authService;
-        private readonly ILogger<AuthController> _logger;
+        _authService = authService;
+        _logger = logger;
+    }
 
-        public AuthController(AuthService authService, ILogger<AuthController> logger)
+    /// <summary>
+    /// Login com email e senha
+    /// </summary>
+    [HttpPost("login")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Login([FromBody] UserDTO user)
+    {
+        try
         {
-            _authService = authService;
-            _logger = logger;
-        }
+            _logger.LogInformation(
+                "[Auth] Tentativa de login para: {Email}",
+                user.Email
+            );
 
-        [HttpPost("rediter")]
-        public async Task<IActionResult> RediterAuth([FromBody] UserDTO user)
-        {
-            try
+            if (string.IsNullOrWhiteSpace(user.Email) ||
+                string.IsNullOrWhiteSpace(user.Password))
             {
-                _logger.LogInformation("[Auth] Iniciando tentativa de login Rediter para: {Email}", user.Email);
-
-                if (string.IsNullOrWhiteSpace(user.Email) || string.IsNullOrWhiteSpace(user.Password))
+                return BadRequest(new
                 {
-                    _logger.LogWarning("[Auth] Login rejeitado: Email ou senha em branco.");
-                    return BadRequest(new { message = "Email e senha são obrigatórios." });
-                }
-
-                TokenRequestDTO token = await _authService.AuthenticateFromRediter(user.Email, user.Password);
-
-                _logger.LogInformation("[Auth] Login Rediter realizado com sucesso para: {Email}", user.Email);
-                return Ok(token);
+                    message = "Email e senha são obrigatórios."
+                });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[Auth] Erro interno durante o login Rediter para {Email}.", user.Email);
-                return StatusCode(500, new { message = "Ocorreu um erro interno ao processar a autenticação." });
-            }
+
+            TokenRequestDTO token =
+                await _authService.AuthenticateFromRediter(
+                    user.Email,
+                    user.Password
+                );
+
+            _logger.LogInformation(
+                "[Auth] Login realizado com sucesso para: {Email}",
+                user.Email
+            );
+
+            return Ok(token);
         }
-
-        [HttpPost("google")]
-        [AllowAnonymous]
-        public async Task<IActionResult> GoogleAuth([FromBody] GoogleLoginRequestDTO dto)
+        catch (Exception ex)
         {
-            try
-            {
-                _logger.LogInformation("[Auth] Iniciando autenticação via Google.");
+            _logger.LogError(
+                ex,
+                "[Auth] Erro ao realizar login para: {Email}",
+                user.Email
+            );
 
-                TokenRequestDTO token = await _authService.AuthenticateFromGoogle(dto.IdToken);
-
-                _logger.LogInformation("[Auth] Login via Google realizado com sucesso.");
-                return Ok(token);
-            }
-            catch (Exception ex)
+            return StatusCode(500, new
             {
-                _logger.LogError(ex, "[Auth] Erro ao tentar autenticar via Google.");
-                return StatusCode(500, new { message = "Falha ao autenticar com o Google." });
-            }
+                message = "Erro interno ao realizar autenticação."
+            });
         }
+    }
 
-        [HttpPost("generate-code")]
-        public async Task<IActionResult> GenerateCode([FromBody] string userEmail)
+    /// <summary>
+    /// Login com Google OAuth
+    /// </summary>
+    [HttpPost("login/google")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GoogleLogin(
+        [FromBody] GoogleLoginRequestDTO dto)
+    {
+        try
         {
-            try
-            {
-                _logger.LogInformation("[Auth] Solicitando geração de código para: {Email}", userEmail);
+            _logger.LogInformation(
+                "[Auth] Tentativa de login via Google."
+            );
 
-                if (string.IsNullOrWhiteSpace(userEmail))
-                    return BadRequest(new { message = "O email é obrigatório." });
+            TokenRequestDTO token =
+                await _authService.AuthenticateFromGoogle(dto.IdToken);
 
-                await _authService.SendVerificationCode(userEmail);
+            _logger.LogInformation(
+                "[Auth] Login via Google realizado com sucesso."
+            );
 
-                _logger.LogInformation("[Auth] Código de verificação enviado com sucesso para: {Email}", userEmail);
-                return Ok(new { message = "Código de verificação enviado para o e-mail." });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[Auth] Erro ao gerar/enviar código de verificação para {Email}.", userEmail);
-                return StatusCode(500, new { message = "Erro ao enviar o código de verificação." });
-            }
+            return Ok(token);
         }
-
-        [HttpPost("verify-code")]
-        public async Task<IActionResult> VerifyCode([FromBody] VerifyCodeRequestDTO request)
+        catch (Exception ex)
         {
-            try
-            {
-                _logger.LogInformation("[Auth] Tentativa de verificação de código para: {Email}", request.Email);
+            _logger.LogError(
+                ex,
+                "[Auth] Erro ao autenticar via Google."
+            );
 
-                TokenRequestDTO token = await _authService.VerifyCode(request.Code, request.Email);
-
-                _logger.LogInformation("[Auth] Código verificado com sucesso para: {Email}", request.Email);
-                return Ok(token);
-            }
-            catch (Exception ex)
+            return StatusCode(500, new
             {
-                _logger.LogError(ex, "[Auth] Erro ao verificar código para {Email}.", request.Email);
-                return BadRequest(new { message = "Código inválido ou expirado." });
-            }
+                message = "Falha ao autenticar com Google."
+            });
         }
+    }
 
-        [HttpPost("refresh-token")]
-        public async Task<IActionResult> RefreshToken([FromBody] string refreshToken)
+    /// <summary>
+    /// Envia código de verificação por email
+    /// </summary>
+    [HttpPost("verification-code")]
+    [AllowAnonymous]
+    public async Task<IActionResult> SendVerificationCode(
+        [FromBody] string userEmail)
+    {
+        try
         {
-            try
-            {
-                _logger.LogInformation("[Auth] Tentativa de atualização de token (Refresh Token).");
+            _logger.LogInformation(
+                "[Auth] Enviando código de verificação para: {Email}",
+                userEmail
+            );
 
-                if (string.IsNullOrWhiteSpace(refreshToken))
+            if (string.IsNullOrWhiteSpace(userEmail))
+            {
+                return BadRequest(new
                 {
-                    _logger.LogWarning("[Auth] Refresh token recebido está vazio.");
-                    return BadRequest(new { message = "O Refresh Token é obrigatório." });
-                }
-
-                var result = await _authService.RefreshTokenAsync(refreshToken);
-
-                if (!result.IsSuccess)
-                {
-                    _logger.LogWarning("[Auth] Falha ao atualizar token. Motivo: {ErrorMessage}", result.ErrorMessage);
-                    return Unauthorized(new { message = result.ErrorMessage });
-                }
-
-                _logger.LogInformation("[Auth] Token atualizado com sucesso.");
-                return Ok(result.Tokens);
+                    message = "O email é obrigatório."
+                });
             }
-            catch (Exception ex)
+
+            await _authService.SendVerificationCode(userEmail);
+
+            return Ok(new
             {
-                _logger.LogError(ex, "[Auth] Erro interno durante o Refresh Token.");
-                return StatusCode(500, new { message = "Erro ao tentar atualizar a sessão." });
+                message = "Código enviado com sucesso."
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "[Auth] Erro ao enviar código para: {Email}",
+                userEmail
+            );
+
+            return StatusCode(500, new
+            {
+                message = "Erro ao enviar código de verificação."
+            });
+        }
+    }
+
+    /// <summary>
+    /// Verifica código enviado por email
+    /// </summary>
+    [HttpPost("verification-code/confirm")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ConfirmVerificationCode(
+        [FromBody] VerifyCodeRequestDTO request)
+    {
+        try
+        {
+            _logger.LogInformation(
+                "[Auth] Verificando código para: {Email}",
+                request.Email
+            );
+
+            TokenRequestDTO token =
+                await _authService.VerifyCode(
+                    request.Code,
+                    request.Email
+                );
+
+            return Ok(token);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "[Auth] Código inválido para: {Email}",
+                request.Email
+            );
+
+            return BadRequest(new
+            {
+                message = "Código inválido ou expirado."
+            });
+        }
+    }
+
+    /// <summary>
+    /// Gera novo access token
+    /// </summary>
+    [HttpPost("refresh-token")]
+    [AllowAnonymous]
+    public async Task<IActionResult> RefreshToken(
+        [FromBody] string refreshToken)
+    {
+        try
+        {
+            _logger.LogInformation(
+                "[Auth] Atualizando access token."
+            );
+
+            if (string.IsNullOrWhiteSpace(refreshToken))
+            {
+                return BadRequest(new
+                {
+                    message = "Refresh token é obrigatório."
+                });
             }
+
+            var result =
+                await _authService.RefreshTokenAsync(refreshToken);
+
+            if (!result.IsSuccess)
+            {
+                return Unauthorized(new
+                {
+                    message = result.ErrorMessage
+                });
+            }
+
+            return Ok(result.Tokens);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "[Auth] Erro ao atualizar token."
+            );
+
+            return StatusCode(500, new
+            {
+                message = "Erro ao atualizar sessão."
+            });
         }
     }
 }
