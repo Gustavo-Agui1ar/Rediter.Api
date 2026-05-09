@@ -364,3 +364,6 @@ FodyWeavers.xsd
 
 #Image folder
 wwwroot/uploads
+
+#deploy
+deploy.ps1

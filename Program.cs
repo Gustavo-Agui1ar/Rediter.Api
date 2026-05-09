@@ -28,18 +28,16 @@ builder.Services.AddOpenApi();
 // Configuração de Conexão: Local vs Cloud
 string connectionString;
 
-if (builder.Environment.IsDevelopment())
-{
-    connectionString = builder.Configuration.GetConnectionString("OracleDb")!;
-}
-else
-{
-    connectionString = builder.Configuration.GetConnectionString("OracleCloudDb")!;
-    string walletPath = builder.Configuration["OracleWalletPath"]!;
+connectionString = builder.Configuration.GetConnectionString("OracleCloudDb")!;
 
-    OracleConfiguration.TnsAdmin = walletPath;
-    OracleConfiguration.WalletLocation = walletPath;
-}
+string walletPath = builder.Configuration["OracleWalletPath"]!;
+
+if (builder.Environment.IsDevelopment())
+    walletPath = builder.Configuration["OracleWalletPathLocal"]!;
+
+OracleConfiguration.TnsAdmin = walletPath;
+OracleConfiguration.WalletLocation = walletPath;
+OracleConfiguration.SqlNetWalletOverride = true;
 
 builder.Services.AddDbContext<Rediter.Api.Data.DataContext>(options =>
     options.UseLazyLoadingProxies()

@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Rediter.Api.DTOs;
 using Rediter.Api.Models;
@@ -106,6 +107,20 @@ namespace Rediter.Api.Controllers
             catch (Exception ex)
             {
                 return BadRequest($"An error occurred while deleting the user: {ex.Message}");
+            }
+        }
+
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchUsers([FromQuery] string query, [FromQuery] DateTime? lastCreatedAt, [FromQuery] string? lastId, [FromQuery] int pageSize)
+        {
+            try
+            {
+                IList<UserFeedInfoDTO> users = await _userService.SearchUsers(query, lastCreatedAt, lastId, pageSize);
+                return Ok(users);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex);
             }
         }
     }

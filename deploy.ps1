@@ -1,6 +1,6 @@
-﻿$key = "C:\Users\gusta\ssh-oracle-key\ssh-key-2026-04-30.key"
+﻿$key = "C:\Users\gusta\ssh-oracle-key\private_key.key"
 
-$server = "opc@159.112.185.202"
+$server = "opc@163.176.243.127"
 
 $dest = "/home/opc/rediter/"
 

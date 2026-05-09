@@ -45,6 +45,8 @@ namespace Rediter.Api.Models
 
         [Column("refresh_token_expiration")]
         public DateTime? RefreshTokenExpiration { get; set; }
+        [Column("Description")]
+        public string? Description { get; set; }
 
         public User() { }
     }

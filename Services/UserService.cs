@@ -1,4 +1,5 @@
-﻿using Npgsql;
+﻿using Microsoft.AspNetCore.Mvc;
+using Npgsql;
 using Rediter.Api.DTOs;
 using Rediter.Api.Models;
 using Rediter.Api.Repositories;
@@ -84,7 +85,8 @@ namespace Rediter.Api.Services
                 Name = user.Name,
                 Email = user.Email,
                 ImageName = file,
-                ImageCover = cover
+                ImageCover = cover,
+                Description = user.Description
             };
         }
 
@@ -101,6 +103,9 @@ namespace Rediter.Api.Services
 
             if (!string.IsNullOrWhiteSpace(dto.Password))
                 user.Password = HashService.HashPassword(dto.Password);
+
+            if (!string.Equals(user.Description, dto.Description))
+                user.Description = dto.Description;
 
             if (dto.File != null)
             {
@@ -132,6 +137,11 @@ namespace Rediter.Api.Services
             {
                 throw new Exception("Error adding profile picture from Google: " + ex.Message);
             }
+        }
+
+        public async Task<IList<UserFeedInfoDTO>> SearchUsers(string query, DateTime? lastCreatedAt, string? lastId, int pageSize)
+        {
+            return await _UserRepository.SearchUsers(query, lastCreatedAt, lastId, pageSize);
         }
     }
 }

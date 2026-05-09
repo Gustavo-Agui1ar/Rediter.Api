@@ -26,7 +26,7 @@ namespace Rediter.Api.Services
                     Post post = new Post();
 
                     post.UserId = Guid.Parse(userUuid);
-                    post.CreatedAt = DateTime.Now;
+                    post.CreatedAt = 
                     post.UpdatedAt = DateTime.Now;
                     post.Content = dto.Text;
                     post.LocationName = dto.LocationName;
@@ -60,38 +60,12 @@ namespace Rediter.Api.Services
 
         public async Task<IList<PostFeedDTO>> GetPostsByUser(string userUuid, DateTime? lastCreatedAt, string? lastId, int pageSize)
         {
-            User? user = await _userservice.GetByGuidAsync(new Guid(userUuid));
+            return await _postrepository.GetUserFeedAsync(userUuid, lastCreatedAt, lastId, pageSize);
+        }
 
-            if (user == null)
-                throw new Exception("User not found");
-
-            IList<Post> posts = await _postrepository.GetPostsByUser(user.Id.ToString(), lastCreatedAt, lastId, pageSize);
-
-            IList<PostFeedDTO> postFeedDTOs = new List<PostFeedDTO>();
-
-            foreach (var post in posts)
-            {
-                PostFeedDTO dto = new PostFeedDTO
-                {
-                    Id = post.Id.ToString(),
-                    UserName = user.Name,
-                    ImageProfileUrl = user.ProfilePicture != null ? user.ProfilePicture.FileName : null,
-                    Text = post.Content,
-                    Location = post.LocationName,
-                    ImageUrls = post.PostImages != null
-                                ? post.PostImages
-                                    .Select(pi => pi.Picture?.FileName)
-                                    .Where(fileName => fileName != null)
-                                    .ToList()!
-                                : new List<string>(),
-                    Edited = post.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")
-                            != post.UpdatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
-                    CreatedAt = post.CreatedAt
-                };
-                postFeedDTOs.Add(dto);
-            }
-
-            return postFeedDTOs;
+        public async Task<IList<PostFeedDTO>> SearchPosts(string query, DateTime? lastCreatedAt, string? lastId, int pageSize, bool onlyWithMedia = false)
+        {
+            return await _postrepository.SearchFeedAsync(query, lastCreatedAt, lastId, pageSize, onlyWithMedia);
         }
 
         public async Task UpdatePost(UpdatePostDTO dto, string postId)

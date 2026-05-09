@@ -78,6 +78,22 @@ namespace Rediter.Api.Controllers
             }
         }
 
+        // GET: api/posts/search?query=example&lastCreatedAt=2024-01-01T00:00:00Z&lastId=123&pageSize=10
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchPosts([FromQuery] string query, [FromQuery] DateTime? lastCreatedAt, [FromQuery] string? lastId ,[FromQuery] int pageSize, [FromQuery] bool onlyWithMedia = false)
+        {
+            try
+            {
+                var posts = await _postService.SearchPosts(query, lastCreatedAt, lastId, pageSize, onlyWithMedia);
+                return Ok(posts);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao buscar posts");
+                return StatusCode(500, "Erro interno do servidor.");    
+            }
+        }
+
         // DELETE: api/posts/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePost([FromRoute] string id)
