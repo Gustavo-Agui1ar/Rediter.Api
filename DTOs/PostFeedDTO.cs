@@ -12,5 +12,7 @@ namespace Rediter.Api.DTOs
         public string? Location { get; set; }
         public bool Edited { get; set; }
         public DateTime CreatedAt { get; set; }
+        public int LikesCount { get; set; }
+        public bool LikedByCurrentUser { get; set; }
     }
 }

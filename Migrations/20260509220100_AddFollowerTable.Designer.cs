@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Oracle.EntityFrameworkCore.Metadata;
 using Rediter.Api.Data;
@@ -11,9 +12,11 @@ using Rediter.Api.Data;
 namespace Rediter.Api.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20260509220100_AddFollowerTable")]
+    partial class AddFollowerTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -76,12 +79,6 @@ namespace Rediter.Api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TIMESTAMP(7)")
                         .HasColumnName("CREATED_AT");
-
-                    b.Property<int>("LikesCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("NUMBER(10)")
-                        .HasDefaultValue(0)
-                        .HasColumnName("LIKES_COUNT");
 
                     b.Property<string>("LocationName")
                         .HasMaxLength(255)
@@ -225,29 +222,6 @@ namespace Rediter.Api.Migrations
                     b.ToTable("USER_FOLLOWERS", (string)null);
                 });
 
-            modelBuilder.Entity("Rediter.Api.Models.UserPostLike", b =>
-                {
-                    b.Property<Guid>("UserId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("RAW(16)")
-                        .HasColumnName("USER_ID");
-
-                    b.Property<Guid>("PostId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("RAW(16)")
-                        .HasColumnName("POST_ID");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TIMESTAMP(7)")
-                        .HasColumnName("CREATED_AT");
-
-                    b.HasKey("UserId", "PostId");
-
-                    b.HasIndex("PostId");
-
-                    b.ToTable("USER_POST_LIKES", (string)null);
-                });
-
             modelBuilder.Entity("Rediter.Api.Models.Post", b =>
                 {
                     b.HasOne("Rediter.Api.Models.User", "User")
@@ -314,29 +288,8 @@ namespace Rediter.Api.Migrations
                     b.Navigation("Following");
                 });
 
-            modelBuilder.Entity("Rediter.Api.Models.UserPostLike", b =>
-                {
-                    b.HasOne("Rediter.Api.Models.Post", "Post")
-                        .WithMany("Likes")
-                        .HasForeignKey("PostId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Rediter.Api.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Post");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("Rediter.Api.Models.Post", b =>
                 {
-                    b.Navigation("Likes");
-
                     b.Navigation("PostImages");
                 });
 

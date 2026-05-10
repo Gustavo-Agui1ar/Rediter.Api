@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Rediter.Api.DTOs;
 using Rediter.Api.Models;
@@ -12,12 +13,17 @@ namespace Rediter.Api.Services
         private readonly UserRepository _UserRepository;
         private readonly PictureService _pictureService;
         private readonly EmailService _emailService;
+        private readonly UserFollowerService _userFollowerService;
 
-        public UserService(UserRepository userRepository, EmailService emailService, PictureService pictureService) : base(userRepository)
+        public UserService(UserRepository userRepository,
+            EmailService emailService,
+            PictureService pictureService,
+            UserFollowerService userFollowerService) : base(userRepository)
         {
             _UserRepository = userRepository;
             _emailService = emailService;
             _pictureService = pictureService;
+            _userFollowerService = userFollowerService;
         }
 
         public async Task<string> CreateUser(UserDTO dto)
@@ -66,27 +72,21 @@ namespace Rediter.Api.Services
             return await _UserRepository.GetUserByRefreshAsync(refreshToken);
         }
 
-        public async Task<UserDTO> GetUserDto(User user)
+        public async Task<UserDTO> GetUserDto(User targetUser, Guid currentUserId)
         {
-            if (user == null)
+            if (targetUser == null)
                 throw new Exception("User not found.");
 
-            string? file = null;
-            string? cover = null;
-
-            if (user.ProfilePicture != null)
-                file = user.ProfilePicture.FileName;
-
-            if (user.ProfileCover != null)
-                cover = user.ProfileCover.FileName;
+            bool isFollowing = await _UserRepository.IsFollowingAsync(currentUserId, targetUser.Id);
 
             return new UserDTO
             {
-                Name = user.Name,
-                Email = user.Email,
-                ImageName = file,
-                ImageCover = cover,
-                Description = user.Description
+                Name = targetUser.Name,
+                Email = targetUser.Email,
+                ImageName = targetUser.ProfilePicture?.FileName,
+                ImageCover = targetUser.ProfileCover?.FileName,
+                Description = targetUser.Description,
+                IsFollowing = isFollowing 
             };
         }
 
@@ -139,9 +139,68 @@ namespace Rediter.Api.Services
             }
         }
 
-        public async Task<IList<UserFeedInfoDTO>> SearchUsers(string query, DateTime? lastCreatedAt, string? lastId, int pageSize)
+        public async Task<IList<UserFeedInfoDTO>> SearchUsers(string query, DateTime? lastCreatedAt, string? lastId, int pageSize, string userId)
         {
-            return await _UserRepository.SearchUsers(query, lastCreatedAt, lastId, pageSize);
+            return await _UserRepository.SearchUsers(query, lastCreatedAt, lastId, pageSize, userId);
+        }
+
+        public async Task FollowUser(string followerId, string followeeId)
+        {
+            try
+            {
+                User? follower = await _UserRepository.GetByUuid(new Guid(followerId));
+                User? followee = await _UserRepository.GetByUuid(new Guid(followeeId));
+
+                if (follower == null || followee == null)
+                    throw new Exception("Follower or followee not found.");
+
+                if (follower.Following.Any(f => f.FollowingId == followee.Id))
+                    throw new Exception("Already following this user.");
+
+                UserFollower follow = new UserFollower
+                {
+                    FollowerId = follower.Id,
+                    FollowingId = followee.Id
+                };
+
+                follower.Following.Add(follow);
+                followee.Followers.Add(follow);
+
+                await _userFollowerService.InsertAsync(follow);
+                await _UserRepository.Update(follower);
+                await _UserRepository.Update(followee);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error following user: " + ex.Message);
+            }
+        }
+
+        public async Task UnfollowUser(string followerId, string followeeId)
+        {
+            try
+            {
+                User? follower = await _UserRepository.GetByUuid(new Guid(followerId));
+                User? followee = await _UserRepository.GetByUuid(new Guid(followeeId));
+
+                if (follower == null || followee == null)
+                    throw new Exception("Follower or followee not found.");
+
+                UserFollower? follow = follower.Following.FirstOrDefault(f => f.FollowingId == followee.Id);
+
+                if (follow == null)
+                    throw new Exception("Not following this user.");
+
+                follower.Following.Remove(follow);
+                followee.Followers.Remove(follow);
+                await _userFollowerService.DeleteAsync(follow);
+                await _UserRepository.Update(follower);
+                await _UserRepository.Update(followee);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error unfollowing user: " + ex.Message);
+            }
         }
     }
 }

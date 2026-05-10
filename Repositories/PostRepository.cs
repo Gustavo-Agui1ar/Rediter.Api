@@ -9,9 +9,10 @@ namespace Rediter.Api.Repositories
 {
     public class PostRepository : BaseRepository<Post>
     {
-        public PostRepository(DataContext data) : base(data)
+        private readonly UserPostLikeRepository _likeRepository;
+        public PostRepository(DataContext data, UserPostLikeRepository likeRepository) : base(data)
         {
-
+            _likeRepository = likeRepository;
         }
 
         public async Task<IList<PostFeedDTO>> GetUserFeedAsync( 
@@ -55,7 +56,8 @@ namespace Rediter.Api.Repositories
                         .Select(fileName => fileName!) 
                         .ToList(),
                     Edited = p.CreatedAt != p.UpdatedAt,
-                    CreatedAt = p.CreatedAt
+                    CreatedAt = p.CreatedAt,
+                    LikesCount = p.LikesCount
                 })
                 .Take(pageSize)
                 .ToListAsync(cancellationToken); 
@@ -70,7 +72,7 @@ namespace Rediter.Api.Repositories
                 .Where(p => p.UserId == parsedUserId)
                 .SelectMany(p => p.PostImages)
                 .Where(pi => pi.Picture != null)
-                .OrderByDescending(pi => pi.CreatedAt)
+                .OrderBy(pi => pi.CreatedAt)
                 .Select(pi => pi.Picture!.FileName)
                 .ToListAsync();
         }
@@ -81,7 +83,8 @@ namespace Rediter.Api.Repositories
              string? lastId,
              int pageSize,
              bool onlyWithMedia = false, 
-             CancellationToken cancellationToken = default)
+             CancellationToken cancellationToken = default,
+             string userId = "")
         {
             var query = _dbSet.AsNoTracking().AsQueryable();
 
@@ -114,6 +117,8 @@ namespace Rediter.Api.Repositories
                 );
             }
 
+            Guid userUuid = new Guid(userId);
+
             return await query
                 .OrderByDescending(p => p.CreatedAt)
                 .ThenByDescending(p => p.Id)
@@ -130,10 +135,23 @@ namespace Rediter.Api.Repositories
                         .Select(fileName => fileName!)
                         .ToList(),
                     Edited = p.CreatedAt != p.UpdatedAt,
-                    CreatedAt = p.CreatedAt
+                    CreatedAt = p.CreatedAt,
+                    LikesCount = p.LikesCount,
+                    LikedByCurrentUser = p.Likes.Any(l => l.UserId == userUuid)
                 })
                 .Take(pageSize)
                 .ToListAsync(cancellationToken);
+        }
+        public async Task AddLike(UserPostLike like)
+        {
+            await _likeRepository.Insert(like);
+        }
+
+        public async Task IncrementLikesCount(Guid postId)
+        {
+            await _context.Posts
+                .Where(p => p.Id == postId)
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.LikesCount, p => p.LikesCount + 1));
         }
     }
 }

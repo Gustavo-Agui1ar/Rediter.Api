@@ -80,17 +80,21 @@ namespace Rediter.Api.Controllers
 
         // GET: api/posts/search?query=example&lastCreatedAt=2024-01-01T00:00:00Z&lastId=123&pageSize=10
         [HttpGet("search")]
-        public async Task<IActionResult> SearchPosts([FromQuery] string query, [FromQuery] DateTime? lastCreatedAt, [FromQuery] string? lastId ,[FromQuery] int pageSize, [FromQuery] bool onlyWithMedia = false)
+        public async Task<IActionResult> SearchPosts([FromQuery] string query, [FromQuery] DateTime? lastCreatedAt, [FromQuery] string? lastId, [FromQuery] int pageSize, [FromQuery] bool onlyWithMedia = false)
         {
             try
             {
-                var posts = await _postService.SearchPosts(query, lastCreatedAt, lastId, pageSize, onlyWithMedia);
+                var userUuid = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (userUuid == null)
+                    return Unauthorized("Usuário não encontrado no token.");
+
+                var posts = await _postService.SearchPosts(query, lastCreatedAt, lastId, pageSize, onlyWithMedia, userUuid);
                 return Ok(posts);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao buscar posts");
-                return StatusCode(500, "Erro interno do servidor.");    
+                return StatusCode(500, "Erro interno do servidor.");
             }
         }
 
@@ -163,6 +167,45 @@ namespace Rediter.Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao buscar mídias do usuário {UserId}", userId);
+                return StatusCode(500, "Erro interno do servidor.");
+            }
+        }
+
+        //POST: api;posts/{id}/like
+        [HttpPost("{id}/like")]
+        public async Task<IActionResult> LikePost([FromRoute] string id)
+        {
+            try
+            {
+                var userUuid = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (userUuid == null)
+                    return Unauthorized("Usuário não encontrado no token.");
+
+                await _postService.LikePost(id, userUuid);
+
+                return Ok(new { message = "Post liked successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao curtir post {PostId}", id);
+                return StatusCode(500, "Erro interno do servidor.");
+            }
+        }
+
+        [HttpDelete("{id}/like")]
+        public async Task<IActionResult> UnlikePost([FromRoute] string id)
+        {
+            try
+            {
+                var userUuid = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (userUuid == null)
+                    return Unauthorized("Usuário não encontrado no token.");
+                await _postService.UnlikePost(id, userUuid);
+                return Ok(new { message = "Post unliked successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao descurtir post {PostId}", id);
                 return StatusCode(500, "Erro interno do servidor.");
             }
         }

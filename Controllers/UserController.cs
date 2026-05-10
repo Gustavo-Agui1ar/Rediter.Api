@@ -9,9 +9,9 @@ using System.Security.Claims;
 namespace Rediter.Api.Controllers
 {
     [ApiController]
-    [Route("api/users")] 
+    [Route("api/users")]
     [Authorize]
-    public class UsersController : ControllerBase 
+    public class UsersController : ControllerBase
     {
         private readonly UserService _userService;
 
@@ -22,7 +22,7 @@ namespace Rediter.Api.Controllers
 
         // POST: api/users
         [AllowAnonymous]
-        [HttpPost] 
+        [HttpPost]
         public async Task<IActionResult> Register([FromBody] UserDTO user)
         {
             try
@@ -40,7 +40,7 @@ namespace Rediter.Api.Controllers
         }
 
         // GET: api/users/me
-        [HttpGet("me")] 
+        [HttpGet("me")]
         public async Task<IActionResult> GetCurrentUser()
         {
             try
@@ -52,11 +52,11 @@ namespace Rediter.Api.Controllers
                 User? user = await _userService.GetByGuidAsync(new Guid(userIdStr));
 
                 if (user == null)
-                    return NotFound("User not found in DB"); 
+                    return NotFound("User not found in DB");
 
-                UserDTO? userDto = await _userService.GetUserDto(user);
+                UserDTO? userDto = await _userService.GetUserDto(user, user.Id);
 
-                return Ok(userDto); 
+                return Ok(userDto);
             }
             catch (Exception ex)
             {
@@ -64,8 +64,33 @@ namespace Rediter.Api.Controllers
             }
         }
 
+        // GET: api/users/{id}
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetUser([FromRoute] string id)
+        {
+            try
+            {
+                User? user = await _userService.GetByGuidAsync(new Guid(id));
+
+                string? userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(userIdStr))
+                    return BadRequest("Session Expired");
+
+                if (user == null)
+                    return BadRequest("User not found");
+
+                UserDTO dto = await _userService.GetUserDto(user, new Guid(userIdStr));
+
+                return Ok(dto);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
+        }
+
         // PATCH: api/users/me
-        [HttpPatch("me")] 
+        [HttpPatch("me")]
         public async Task<IActionResult> UpdateProfile([FromForm] UserUpdateDTO dto)
         {
             try
@@ -90,7 +115,7 @@ namespace Rediter.Api.Controllers
         }
 
         // DELETE: api/users/me
-        [HttpDelete("me")] 
+        [HttpDelete("me")]
         public async Task<IActionResult> DeleteUser()
         {
             try
@@ -102,7 +127,7 @@ namespace Rediter.Api.Controllers
                 if (!(await _userService.DeleteByGuidAsync(new Guid(userIdStr))))
                     return BadRequest("Failed to delete user.");
 
-                return NoContent(); 
+                return NoContent();
             }
             catch (Exception ex)
             {
@@ -110,17 +135,62 @@ namespace Rediter.Api.Controllers
             }
         }
 
+        // GET: api/users/search
         [HttpGet("search")]
         public async Task<IActionResult> SearchUsers([FromQuery] string query, [FromQuery] DateTime? lastCreatedAt, [FromQuery] string? lastId, [FromQuery] int pageSize)
         {
             try
             {
-                IList<UserFeedInfoDTO> users = await _userService.SearchUsers(query, lastCreatedAt, lastId, pageSize);
+                string? userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(userIdStr))
+                    return BadRequest("Session Expired");
+
+                IList<UserFeedInfoDTO> users = await _userService.SearchUsers(query, lastCreatedAt, lastId, pageSize, userIdStr);
                 return Ok(users);
             }
             catch (Exception ex)
             {
                 return BadRequest(ex);
+            }
+        }
+
+        [HttpPost("{id}/follow")]
+        public async Task<IActionResult> FollowUser([FromRoute] string id)
+        {
+            try
+            {
+                string? userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                if (string.IsNullOrWhiteSpace(userIdStr))
+                    return BadRequest("Session Expired");
+
+                await _userService.FollowUser(userIdStr, id);
+
+                return Ok(new { message = "User followed successfully" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpDelete("{id}/unfollow")]
+        public async Task<IActionResult> UnfollowUser([FromRoute] string id)
+        {
+            try
+            {
+                string? userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                if (string.IsNullOrWhiteSpace(userIdStr))
+                    return BadRequest("Session Expired");
+
+                await _userService.UnfollowUser(userIdStr, id);
+
+                return Ok(new { message = "User unfollowed successfully" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
             }
         }
     }

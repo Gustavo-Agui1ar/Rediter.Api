@@ -21,41 +21,41 @@ namespace Rediter.Api.Services
 
         public async Task NewPost(NewPostDTO dto, string userUuid)
         {
-                try
+            try
+            {
+                Post post = new Post();
+
+                post.UserId = Guid.Parse(userUuid);
+                post.CreatedAt =
+                post.UpdatedAt = DateTime.Now;
+                post.Content = dto.Text;
+                post.LocationName = dto.LocationName;
+
+                if (dto.Pictures != null && dto.Pictures.Count > 0)
                 {
-                    Post post = new Post();
-
-                    post.UserId = Guid.Parse(userUuid);
-                    post.CreatedAt = 
-                    post.UpdatedAt = DateTime.Now;
-                    post.Content = dto.Text;
-                    post.LocationName = dto.LocationName;
-
-                    if (dto.Pictures != null && dto.Pictures.Count > 0)
+                    int order = 0;
+                    foreach (IFormFile picture in dto.Pictures)
                     {
-                        int order = 0;
-                        foreach (IFormFile picture in dto.Pictures)
+                        Picture pic = await _pictureService.CreatePicture(picture);
+
+                        PostImage pi = new PostImage
                         {
-                            Picture pic = await _pictureService.CreatePicture(picture);
+                            PictureId = pic.Id,
+                            DisplayOrder = order++,
+                            CreatedAt = DateTime.Now,
+                        };
 
-                            PostImage pi = new PostImage
-                            {
-                                PictureId = pic.Id,
-                                DisplayOrder = order++,
-                                CreatedAt = DateTime.Now,
-                            };
-
-                            post.PostImages.Add(pi);
-                        }
+                        post.PostImages.Add(pi);
                     }
-                    await _postrepository.Insert(post);
+                }
+                await _postrepository.Insert(post);
 
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine(ex);
-                    throw new Exception(ex.Message);
-                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex);
+                throw new Exception(ex.Message);
+            }
         }
 
         public async Task<IList<PostFeedDTO>> GetPostsByUser(string userUuid, DateTime? lastCreatedAt, string? lastId, int pageSize)
@@ -63,9 +63,9 @@ namespace Rediter.Api.Services
             return await _postrepository.GetUserFeedAsync(userUuid, lastCreatedAt, lastId, pageSize);
         }
 
-        public async Task<IList<PostFeedDTO>> SearchPosts(string query, DateTime? lastCreatedAt, string? lastId, int pageSize, bool onlyWithMedia = false)
-        {
-            return await _postrepository.SearchFeedAsync(query, lastCreatedAt, lastId, pageSize, onlyWithMedia);
+        public async Task<IList<PostFeedDTO>> SearchPosts(string query, DateTime? lastCreatedAt, string? lastId, int pageSize, bool onlyWithMedia = false, string userId = "")
+        { 
+            return await _postrepository.SearchFeedAsync(query, lastCreatedAt, lastId, pageSize, onlyWithMedia, userId: userId);
         }
 
         public async Task UpdatePost(UpdatePostDTO dto, string postId)
@@ -125,7 +125,7 @@ namespace Rediter.Api.Services
                 try
                 {
                     Post? post = await _postrepository.GetByUuid(new Guid(postId));
-                    
+
                     if (post == null)
                         throw new Exception("Post não encontrado");
 
@@ -143,6 +143,55 @@ namespace Rediter.Api.Services
         public async Task<IList<string>> GetAllMidiaNames(string userId)
         {
             return await _postrepository.GetAllMidiaNames(userId);
+        }
+
+        public async Task LikePost(string postId, string userId)
+        {
+            Guid parsedPostId = Guid.Parse(postId);
+            Guid parsedUserId = Guid.Parse(userId);
+
+            Post? post = await _postrepository.GetByUuid(parsedPostId);
+
+            if (post == null)
+                throw new Exception("Post não encontrado");
+
+            bool alreadyLiked = post.Likes.Any(l => l.UserId == parsedUserId);
+
+            if (alreadyLiked)
+                return;
+
+            await _postrepository.AddLike(new UserPostLike
+            {
+                PostId = post.Id,
+                UserId = parsedUserId,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _postrepository.IncrementLikesCount(post.Id);
+        }
+
+        public async Task UnlikePost(string postId, string userId)
+        {
+            try
+            {
+                Post? post = await _postrepository.GetByUuid(new Guid(postId));
+                if (post == null)
+                    throw new Exception("Post não encontrado");
+
+                Guid parsedUserId = Guid.Parse(userId);
+                var like = post.Likes.FirstOrDefault(l => l.UserId == parsedUserId);
+
+                if (like == null)
+                    return;
+
+                post.Likes.Remove(like);
+                post.LikesCount--;
+                await _postrepository.Update(post);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
         }
     }
 }

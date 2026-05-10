@@ -10,5 +10,6 @@
 
         Task<bool> DeleteByIdAsync(int id);
         Task<bool> DeleteByGuidAsync(Guid guid);
+        Task<bool> DeleteAsync(T entity);
     }
 }

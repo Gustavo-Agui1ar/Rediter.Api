@@ -46,5 +46,10 @@ namespace Rediter.Api.Services.UtilitariesServices
 
             return await _repository.Delete(entity);
         }
+
+        public virtual async Task<bool> DeleteAsync(T entity)
+        {
+            return await _repository.Delete(entity);
+        }
     }
 }

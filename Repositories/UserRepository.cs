@@ -39,8 +39,10 @@ namespace Rediter.Api.Repositories
                 .FirstOrDefaultAsync(u => u.RefreshToken == refresh);
         }
 
-        public async Task<List<UserFeedInfoDTO>> SearchUsers(string query, DateTime? lastCreatedAt, string? lastId, int pageSize)
+        public async Task<List<UserFeedInfoDTO>> SearchUsers(string query, DateTime? lastCreatedAt, string? lastId, int pageSize, string userId)
         {
+            Guid currentUserGuid = Guid.Parse(userId);
+
             IQueryable<User> usersQuery = _dbSet.AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(query))
@@ -50,9 +52,11 @@ namespace Rediter.Api.Repositories
 
             if (lastCreatedAt.HasValue && !string.IsNullOrWhiteSpace(lastId))
             {
+                Guid lastGuid = Guid.Parse(lastId); 
+
                 usersQuery = usersQuery.Where(u =>
                     u.CreatedAt < lastCreatedAt ||
-                    (u.CreatedAt == lastCreatedAt && string.Compare(u.Id.ToString(), lastId) < 0));
+                    (u.CreatedAt == lastCreatedAt && u.Id.CompareTo(lastGuid) < 0));
             }
 
             var users = await usersQuery
@@ -65,11 +69,22 @@ namespace Rediter.Api.Repositories
                     UserName = u.Name,
                     ProfileImageName = u.ProfilePicture != null ? u.ProfilePicture.FileName : null,
                     CreatedAt = u.CreatedAt,
-                    Description = u.Description
+                    Description = u.Description,
+                    OwnProfile = u.Id == currentUserGuid,
+                    IsFollowing = u.Followers.Any(f => f.FollowerId == currentUserGuid)
                 })
                 .ToListAsync();
 
             return users;
+        }
+
+        public async Task<bool> IsFollowingAsync(Guid currentUserId, Guid targetUserId)
+        {
+            if (currentUserId == targetUserId)
+                return false;
+
+            return await _context.UserFollowers
+                .AnyAsync(f => f.FollowerId == currentUserId && f.FollowingId == targetUserId);
         }
     }
 }
