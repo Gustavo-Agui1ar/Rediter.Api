@@ -30,6 +30,7 @@ namespace Rediter.Api.Services
                 post.UpdatedAt = DateTime.Now;
                 post.Content = dto.Text;
                 post.LocationName = dto.LocationName;
+                post.ParentPostId = dto.ParentPostId != null ? Guid.Parse(dto.ParentPostId) : null;
 
                 if (dto.Pictures != null && dto.Pictures.Count > 0)
                 {
@@ -58,13 +59,13 @@ namespace Rediter.Api.Services
             }
         }
 
-        public async Task<IList<PostFeedDTO>> GetPostsByUser(string userUuid, DateTime? lastCreatedAt, string? lastId, int pageSize)
+        public async Task<IList<PostFeedDTO>> GetPostsByUser(string userUuid, DateTime? lastCreatedAt, string? lastId, int pageSize, string user)
         {
-            return await _postrepository.GetUserFeedAsync(userUuid, lastCreatedAt, lastId, pageSize);
+            return await _postrepository.GetUserFeedAsync(userUuid, lastCreatedAt, lastId, pageSize, user);
         }
 
         public async Task<IList<PostFeedDTO>> SearchPosts(string query, DateTime? lastCreatedAt, string? lastId, int pageSize, bool onlyWithMedia = false, string userId = "")
-        { 
+        {
             return await _postrepository.SearchFeedAsync(query, lastCreatedAt, lastId, pageSize, onlyWithMedia, userId: userId);
         }
 
@@ -192,6 +193,10 @@ namespace Rediter.Api.Services
             {
                 throw new Exception(ex.Message);
             }
+        }
+        public async Task<PostFeedDTO?> GetPostById(string postId, string userUuid)
+        {
+            return await _postrepository.GetPostById(new Guid(postId), new Guid(userUuid));
         }
     }
 }

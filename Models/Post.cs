@@ -5,6 +5,10 @@ public class Post
     public virtual Guid Id { get; set; }
     public virtual Guid UserId { get; set; }
     public virtual User? User { get; set; }
+    public virtual Guid? ParentPostId { get; set; }
+    public virtual Post? ParentPost { get; set; }
+    public virtual int CommentsCount { get; set; } = 0;
+    public virtual ICollection<Post> Replies { get; set; } = new List<Post>();
     public virtual string? LocationName { get; set; }
     public virtual string? Content { get; set; }
     public virtual DateTime CreatedAt { get; set; }

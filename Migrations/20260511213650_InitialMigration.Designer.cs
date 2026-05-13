@@ -12,8 +12,8 @@ using Rediter.Api.Data;
 namespace Rediter.Api.Migrations
 {
     [DbContext(typeof(DataContext))]
-    [Migration("20260429171923_ConfiguracaoOracleFinal")]
-    partial class ConfiguracaoOracleFinal
+    [Migration("20260511213650_InitialMigration")]
+    partial class InitialMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -39,12 +39,14 @@ namespace Rediter.Api.Migrations
 
                     b.Property<string>("FileName")
                         .IsRequired()
-                        .HasColumnType("NVARCHAR2(2000)")
+                        .HasMaxLength(255)
+                        .HasColumnType("NVARCHAR2(255)")
                         .HasColumnName("FILE_NAME");
 
                     b.Property<string>("MimeType")
                         .IsRequired()
-                        .HasColumnType("NVARCHAR2(2000)")
+                        .HasMaxLength(100)
+                        .HasColumnType("NVARCHAR2(100)")
                         .HasColumnName("MIME_TYPE");
 
                     b.Property<int>("Size")
@@ -53,12 +55,13 @@ namespace Rediter.Api.Migrations
 
                     b.Property<string>("StoragePath")
                         .IsRequired()
-                        .HasColumnType("NVARCHAR2(2000)")
+                        .HasMaxLength(500)
+                        .HasColumnType("NVARCHAR2(500)")
                         .HasColumnName("STORAGE_PATH");
 
                     b.HasKey("Id");
 
-                    b.ToTable("PICTURES");
+                    b.ToTable("PICTURES", (string)null);
                 });
 
             modelBuilder.Entity("Rediter.Api.Models.Post", b =>
@@ -68,32 +71,52 @@ namespace Rediter.Api.Migrations
                         .HasColumnType("RAW(16)")
                         .HasColumnName("ID");
 
+                    b.Property<int>("CommentsCount")
+                        .HasColumnType("NUMBER(10)")
+                        .HasColumnName("COMMENTSCOUNT");
+
                     b.Property<string>("Content")
+                        .HasMaxLength(2000)
                         .HasColumnType("NVARCHAR2(2000)")
                         .HasColumnName("CONTENT");
 
                     b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("TIMESTAMP(7)")
-                        .HasColumnName("CREATED_AT");
+                        .HasColumnName("CREATEDAT")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int>("LikesCount")
+                        .HasColumnType("NUMBER(10)")
+                        .HasColumnName("LIKESCOUNT");
 
                     b.Property<string>("LocationName")
-                        .HasColumnType("NVARCHAR2(2000)")
-                        .HasColumnName("LOCATION_NAME");
+                        .HasMaxLength(255)
+                        .HasColumnType("NVARCHAR2(255)")
+                        .HasColumnName("LOCATIONNAME");
+
+                    b.Property<Guid?>("ParentPostId")
+                        .HasColumnType("RAW(16)")
+                        .HasColumnName("PARENTPOSTID");
 
                     b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("TIMESTAMP(7)")
-                        .HasColumnName("UPDATED_AT");
+                        .HasColumnName("UPDATEDAT")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<Guid>("UserId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("RAW(16)")
-                        .HasColumnName("USER_ID");
+                        .HasColumnName("USERID");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ParentPostId");
+
                     b.HasIndex("UserId");
 
-                    b.ToTable("POSTS");
+                    b.ToTable("POSTS", (string)null);
                 });
 
             modelBuilder.Entity("Rediter.Api.Models.PostImage", b =>
@@ -108,7 +131,9 @@ namespace Rediter.Api.Migrations
                         .HasColumnName("CREATED_AT");
 
                     b.Property<int>("DisplayOrder")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("NUMBER(10)")
+                        .HasDefaultValue(0)
                         .HasColumnName("DISPLAY_ORDER");
 
                     b.Property<int>("PictureId")
@@ -126,7 +151,7 @@ namespace Rediter.Api.Migrations
 
                     b.HasIndex("PostId");
 
-                    b.ToTable("POST_IMAGES");
+                    b.ToTable("POST_IMAGES", (string)null);
                 });
 
             modelBuilder.Entity("Rediter.Api.Models.User", b =>
@@ -140,18 +165,27 @@ namespace Rediter.Api.Migrations
                         .HasColumnType("TIMESTAMP(7)")
                         .HasColumnName("CREATED_AT");
 
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("NVARCHAR2(500)")
+                        .HasColumnName("DESCRIPTION");
+
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasColumnType("NVARCHAR2(2000)")
+                        .HasMaxLength(255)
+                        .HasColumnType("NVARCHAR2(255)")
                         .HasColumnName("EMAIL");
 
                     b.Property<bool>("IsVerified")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("NUMBER(1)")
+                        .HasDefaultValue(false)
                         .HasColumnName("IS_VERIFIED");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("NVARCHAR2(2000)")
+                        .HasMaxLength(150)
+                        .HasColumnType("NVARCHAR2(150)")
                         .HasColumnName("NAME");
 
                     b.Property<string>("Password")
@@ -184,16 +218,65 @@ namespace Rediter.Api.Migrations
 
                     b.HasIndex("ProfilePictureId");
 
-                    b.ToTable("USERS");
+                    b.ToTable("USERS", (string)null);
+                });
+
+            modelBuilder.Entity("Rediter.Api.Models.UserFollower", b =>
+                {
+                    b.Property<Guid>("FollowerId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("RAW(16)")
+                        .HasColumnName("FOLLOWER");
+
+                    b.Property<Guid>("FollowingId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("RAW(16)")
+                        .HasColumnName("FOLLOWING");
+
+                    b.HasKey("FollowerId", "FollowingId");
+
+                    b.HasIndex("FollowingId");
+
+                    b.ToTable("USER_FOLLOWERS", (string)null);
+                });
+
+            modelBuilder.Entity("Rediter.Api.Models.UserPostLike", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("RAW(16)")
+                        .HasColumnName("USER_ID");
+
+                    b.Property<Guid>("PostId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("RAW(16)")
+                        .HasColumnName("POST_ID");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TIMESTAMP(7)")
+                        .HasColumnName("CREATED_AT");
+
+                    b.HasKey("UserId", "PostId");
+
+                    b.HasIndex("PostId");
+
+                    b.ToTable("USER_POST_LIKES", (string)null);
                 });
 
             modelBuilder.Entity("Rediter.Api.Models.Post", b =>
                 {
+                    b.HasOne("Rediter.Api.Models.Post", "ParentPost")
+                        .WithMany("Replies")
+                        .HasForeignKey("ParentPostId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Rediter.Api.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("ParentPost");
 
                     b.Navigation("User");
                 });
@@ -203,7 +286,7 @@ namespace Rediter.Api.Migrations
                     b.HasOne("Rediter.Api.Models.Picture", "Picture")
                         .WithMany()
                         .HasForeignKey("PictureId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Rediter.Api.Models.Post", "Post")
@@ -221,20 +304,71 @@ namespace Rediter.Api.Migrations
                 {
                     b.HasOne("Rediter.Api.Models.Picture", "ProfileCover")
                         .WithMany()
-                        .HasForeignKey("ProfileCoverId");
+                        .HasForeignKey("ProfileCoverId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Rediter.Api.Models.Picture", "ProfilePicture")
                         .WithMany()
-                        .HasForeignKey("ProfilePictureId");
+                        .HasForeignKey("ProfilePictureId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("ProfileCover");
 
                     b.Navigation("ProfilePicture");
                 });
 
+            modelBuilder.Entity("Rediter.Api.Models.UserFollower", b =>
+                {
+                    b.HasOne("Rediter.Api.Models.User", "Follower")
+                        .WithMany("Following")
+                        .HasForeignKey("FollowerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Rediter.Api.Models.User", "Following")
+                        .WithMany("Followers")
+                        .HasForeignKey("FollowingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Follower");
+
+                    b.Navigation("Following");
+                });
+
+            modelBuilder.Entity("Rediter.Api.Models.UserPostLike", b =>
+                {
+                    b.HasOne("Rediter.Api.Models.Post", "Post")
+                        .WithMany("Likes")
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Rediter.Api.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Post");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Rediter.Api.Models.Post", b =>
                 {
+                    b.Navigation("Likes");
+
                     b.Navigation("PostImages");
+
+                    b.Navigation("Replies");
+                });
+
+            modelBuilder.Entity("Rediter.Api.Models.User", b =>
+                {
+                    b.Navigation("Followers");
+
+                    b.Navigation("Following");
                 });
 #pragma warning restore 612, 618
         }

@@ -2,57 +2,57 @@
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Rediter.Api.Models;
 
-namespace Rediter.Api.Mappings;
-
-public class PostMap : IEntityTypeConfiguration<Post>
+namespace Rediter.Api.Data.Mappings
 {
-    public void Configure(EntityTypeBuilder<Post> builder)
+    public class PostConfiguration : IEntityTypeConfiguration<Post>
     {
-        builder.ToTable("posts");
+        public void Configure(EntityTypeBuilder<Post> builder)
+        {
+            // Tabela
+            builder.ToTable("Posts");
 
-        builder.HasKey(x => x.Id);
+            // Chave Primária
+            builder.HasKey(p => p.Id);
 
-        builder.Property(x => x.Id)
-            .HasColumnName("id");
+            // Propriedades
+            builder.Property(p => p.Content)
+                .HasMaxLength(2000); // Exemplo de limite de caracteres
 
-        builder.Property(x => x.UserId)
-            .HasColumnName("user_id")
-            .IsRequired();
+            builder.Property(p => p.LocationName)
+                .HasMaxLength(255);
 
-        builder.Property(x => x.LocationName)
-            .HasColumnName("location_name")
-            .HasMaxLength(255);
+            builder.Property(p => p.CreatedAt)
+                .IsRequired()
+                .HasDefaultValueSql("CURRENT_TIMESTAMP"); 
+            builder.Property(p => p.UpdatedAt)
+                .IsRequired()
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-        builder.Property(x => x.Content)
-            .HasColumnName("content")
-            .HasMaxLength(500); 
+            // --- Relacionamentos ---
 
-        builder.Property(x => x.CreatedAt)
-            .HasColumnName("created_at")
-            .IsRequired();
+            // 1. Relacionamento com Usuário (Autor)
+            builder.HasOne(p => p.User)
+                .WithMany() // Se o User não tiver ICollection<Post>, deixe vazio
+                .HasForeignKey(p => p.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-        builder.Property(x => x.UpdatedAt)
-            .HasColumnName("updated_at")
-            .IsRequired();
+            // 2. Auto-relacionamento (Post pai e Respostas/Comentários)
+            builder.HasOne(p => p.ParentPost)
+                .WithMany(p => p.Replies)
+                .HasForeignKey(p => p.ParentPostId)
+                .OnDelete(DeleteBehavior.Restrict); // Restrict evita ciclos de cascade
 
-        builder.HasOne(x => x.User)
-            .WithMany() 
-            .HasForeignKey(x => x.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
+            // 3. Relacionamento com Imagens (Um para Muitos)
+            builder.HasMany(p => p.PostImages)
+                .WithOne() // Se PostImage não tiver a propriedade 'Post', deixe vazio
+                .HasForeignKey("PostId") // Nome da FK no banco de dados
+                .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasMany(x => x.PostImages)
-            .WithOne(x => x.Post)
-            .HasForeignKey(x => x.PostId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        builder.Property(x => x.LikesCount)
-            .HasColumnName("likes_count")
-            .HasDefaultValue(0)
-            .IsRequired();
-
-        builder.HasMany(x => x.Likes)
-            .WithOne(x => x.Post)
-            .HasForeignKey(x => x.PostId)
-            .OnDelete(DeleteBehavior.Cascade);
+            // 4. Relacionamento com Likes (Muitos para Muitos ou 1:N com a tabela associativa)
+            builder.HasMany(p => p.Likes)
+                .WithOne() // Ajuste se UserPostLike tiver a propriedade 'Post'
+                .HasForeignKey("PostId")
+                .OnDelete(DeleteBehavior.Cascade);
+        }
     }
 }

@@ -68,36 +68,48 @@ namespace Rediter.Api.Migrations
                         .HasColumnType("RAW(16)")
                         .HasColumnName("ID");
 
+                    b.Property<int>("CommentsCount")
+                        .HasColumnType("NUMBER(10)")
+                        .HasColumnName("COMMENTSCOUNT");
+
                     b.Property<string>("Content")
-                        .HasMaxLength(500)
-                        .HasColumnType("NVARCHAR2(500)")
+                        .HasMaxLength(2000)
+                        .HasColumnType("NVARCHAR2(2000)")
                         .HasColumnName("CONTENT");
 
                     b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("TIMESTAMP(7)")
-                        .HasColumnName("CREATED_AT");
+                        .HasColumnName("CREATEDAT")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<int>("LikesCount")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("NUMBER(10)")
-                        .HasDefaultValue(0)
-                        .HasColumnName("LIKES_COUNT");
+                        .HasColumnName("LIKESCOUNT");
 
                     b.Property<string>("LocationName")
                         .HasMaxLength(255)
                         .HasColumnType("NVARCHAR2(255)")
-                        .HasColumnName("LOCATION_NAME");
+                        .HasColumnName("LOCATIONNAME");
+
+                    b.Property<Guid?>("ParentPostId")
+                        .HasColumnType("RAW(16)")
+                        .HasColumnName("PARENTPOSTID");
 
                     b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("TIMESTAMP(7)")
-                        .HasColumnName("UPDATED_AT");
+                        .HasColumnName("UPDATEDAT")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<Guid>("UserId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("RAW(16)")
-                        .HasColumnName("USER_ID");
+                        .HasColumnName("USERID");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ParentPostId");
 
                     b.HasIndex("UserId");
 
@@ -250,11 +262,18 @@ namespace Rediter.Api.Migrations
 
             modelBuilder.Entity("Rediter.Api.Models.Post", b =>
                 {
+                    b.HasOne("Rediter.Api.Models.Post", "ParentPost")
+                        .WithMany("Replies")
+                        .HasForeignKey("ParentPostId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Rediter.Api.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("ParentPost");
 
                     b.Navigation("User");
                 });
@@ -338,6 +357,8 @@ namespace Rediter.Api.Migrations
                     b.Navigation("Likes");
 
                     b.Navigation("PostImages");
+
+                    b.Navigation("Replies");
                 });
 
             modelBuilder.Entity("Rediter.Api.Models.User", b =>

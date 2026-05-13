@@ -5,5 +5,6 @@
         public string? Text { get; set; }
         public IList<IFormFile>? Pictures { get; set; }
         public string? LocationName { get; set; }
+        public string? ParentPostId { get; set; }
     }
 }

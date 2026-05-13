@@ -20,6 +20,7 @@ namespace Rediter.Api.Repositories
             DateTime? lastCreatedAt,
             string? lastId,
             int pageSize,
+            string user,
             CancellationToken cancellationToken = default)
         {
             var parsedUserId = Guid.Parse(userId);
@@ -40,6 +41,8 @@ namespace Rediter.Api.Repositories
                 );
             }
 
+            Guid userFol = new Guid(user);
+
             return await query
                 .OrderByDescending(p => p.CreatedAt)
                 .ThenByDescending(p => p.Id)
@@ -57,7 +60,8 @@ namespace Rediter.Api.Repositories
                         .ToList(),
                     Edited = p.CreatedAt != p.UpdatedAt,
                     CreatedAt = p.CreatedAt,
-                    LikesCount = p.LikesCount
+                    LikesCount = p.LikesCount,
+                    LikedByCurrentUser = p.Likes.Any(x => x.UserId == userFol)
                 })
                 .Take(pageSize)
                 .ToListAsync(cancellationToken); 
@@ -137,10 +141,44 @@ namespace Rediter.Api.Repositories
                     Edited = p.CreatedAt != p.UpdatedAt,
                     CreatedAt = p.CreatedAt,
                     LikesCount = p.LikesCount,
-                    LikedByCurrentUser = p.Likes.Any(l => l.UserId == userUuid)
+                    LikedByCurrentUser = p.Likes.Any(l => l.UserId == userUuid),
+                    PostUserId = p.UserId.ToString()
                 })
                 .Take(pageSize)
                 .ToListAsync(cancellationToken);
+        }
+
+        public async Task<PostFeedDTO?> GetPostById(Guid postId, Guid userId)
+        {
+            return await _dbSet
+                .AsNoTracking()
+                .Where(p => p.Id == postId)
+                .Select(p => new PostFeedDTO
+                {
+                    Id = p.Id.ToString(),
+                    UserName = p.User!.Name,
+                    ImageProfileUrl = p.User.ProfilePicture != null ? p.User.ProfilePicture.FileName : null,
+                    Text = p.Content,
+                    Location = p.LocationName,
+
+                    ImageUrls = p.PostImages
+                        .Where(pi => pi.Picture != null)
+                        .Select(pi => pi.Picture!.FileName)
+                        .ToList(),
+
+                    Edited = p.CreatedAt != p.UpdatedAt,
+                    CreatedAt = p.CreatedAt,
+                    LikesCount = p.LikesCount,
+
+                    LikedByCurrentUser = p.Likes.Any(l => l.UserId == userId),
+
+                    PostUserId = p.UserId.ToString(),
+
+                    IsFollowing = p.User.Followers.Any(f => f.FollowerId == userId),
+
+                    OwnPost = p.UserId == userId
+                })
+                .FirstOrDefaultAsync();
         }
         public async Task AddLike(UserPostLike like)
         {

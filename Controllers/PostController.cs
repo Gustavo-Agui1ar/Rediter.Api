@@ -51,12 +51,36 @@ namespace Rediter.Api.Controllers
                 if (userUuid == null)
                     return Unauthorized("Usuário não encontrado no token.");
 
-                var posts = await _postService.GetPostsByUser(userUuid, lastCreatedAt, lastId, pageSize);
+                var posts = await _postService.GetPostsByUser(userUuid, lastCreatedAt, lastId, pageSize, userUuid);
                 return Ok(posts);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao buscar posts do usuário");
+                return StatusCode(500, "Erro interno do servidor.");
+            }
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetPostById([FromRoute] string id)
+        {
+            try
+            {
+                string? userUuid = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                
+                if (userUuid == null)
+                    return Unauthorized("Usuário não encontrado no token.");
+                
+                PostFeedDTO? post = await _postService.GetPostById(id, userUuid);
+
+                if(post == null)
+                    return NotFound("Post não encontrado.");
+
+                return Ok(post);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao buscar post {PostId}", id);
                 return StatusCode(500, "Erro interno do servidor.");
             }
         }
@@ -140,9 +164,14 @@ namespace Rediter.Api.Controllers
         {
             try
             {
+                var userUuid = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (userUuid == null)
+                    return Unauthorized("Usuário não encontrado no token.");
+
                 if (string.IsNullOrWhiteSpace(userId))
                     return BadRequest("O ID do usuário é obrigatório.");
-                var posts = await _postService.GetPostsByUser(userId, lastCreatedAt, lastId, pageSize);
+
+                var posts = await _postService.GetPostsByUser(userId, lastCreatedAt, lastId, pageSize, userUuid);
                 return Ok(posts);
             }
             catch (Exception ex)

@@ -14,5 +14,8 @@ namespace Rediter.Api.DTOs
         public DateTime CreatedAt { get; set; }
         public int LikesCount { get; set; }
         public bool LikedByCurrentUser { get; set; }
+        public string PostUserId { get; set; } = null!;
+        public bool IsFollowing { get; set; }
+        public bool OwnPost { get; set; }
     }
 }
