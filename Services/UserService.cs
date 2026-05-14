@@ -59,7 +59,7 @@ namespace Rediter.Api.Services
 
         public async Task<string> GetUserCodeAsync(string userId)
         {
-            return await _UserRepository.GetCodeByIdAsync(userId);
+            return await _UserRepository.GetCodeByIdAsync(Guid.Parse(userId));
         }
 
         public async Task<User?> GetByEmailAsync(string email)
@@ -139,7 +139,7 @@ namespace Rediter.Api.Services
             }
         }
 
-        public async Task<IList<UserFeedInfoDTO>> SearchUsers(string query, DateTime? lastCreatedAt, string? lastId, int pageSize, string userId)
+        public async Task<IList<UserFeedInfoDTO>> SearchUsers(string query, DateTime? lastCreatedAt, Guid? lastId, int pageSize, Guid userId)
         {
             return await _UserRepository.SearchUsers(query, lastCreatedAt, lastId, pageSize, userId);
         }

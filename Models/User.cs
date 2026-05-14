@@ -1,6 +1,6 @@
 ﻿namespace Rediter.Api.Models;
 
-public class User
+public class User : IEntity
 {
     public virtual Guid Id { get; set; }
     public virtual string Name { get; set; } = null!;
@@ -8,10 +8,10 @@ public class User
     public virtual string? Password { get; set; }
     public virtual DateTime CreatedAt { get; set; }
 
-    public virtual int? ProfilePictureId { get; set; }
+    public virtual Guid? ProfilePictureId { get; set; }
     public virtual Picture? ProfilePicture { get; set; }
 
-    public virtual int? ProfileCoverId { get; set; }
+    public virtual Guid? ProfileCoverId { get; set; }
     public virtual Picture? ProfileCover { get; set; }
 
     public virtual bool IsVerified { get; set; }

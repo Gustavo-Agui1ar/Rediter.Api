@@ -9,14 +9,14 @@ namespace Rediter.Api.Services
     public class PostService : BaseService<Post>
     {
         private readonly PostRepository _postrepository;
-        private readonly UserService _userservice;
         private readonly PictureService _pictureService;
+        private readonly PostUserLikeService _postUserLikeService;
 
-        public PostService(PostRepository postrepository, PictureService pictureService, UserService userService) : base(postrepository)
+        public PostService(PostRepository postrepository, PictureService pictureService, PostUserLikeService postUserLikeService) : base(postrepository)
         {
             _postrepository = postrepository;
             _pictureService = pictureService;
-            _userservice = userService;
+            _postUserLikeService = postUserLikeService;
         }
 
         public async Task NewPost(NewPostDTO dto, string userUuid)
@@ -30,7 +30,20 @@ namespace Rediter.Api.Services
                 post.UpdatedAt = DateTime.Now;
                 post.Content = dto.Text;
                 post.LocationName = dto.LocationName;
-                post.ParentPostId = dto.ParentPostId != null ? Guid.Parse(dto.ParentPostId) : null;
+                post.ParentPostId = null;
+
+                if (dto.ParentPostId != null)
+                {
+                    post.ParentPostId = new Guid(dto.ParentPostId);
+
+                    Post? parentPost = await _postrepository.GetByUuid(post.ParentPostId.Value);
+                   
+                    if (parentPost != null)
+                    {
+                        parentPost.CommentsCount++;
+                        await _postrepository.Update(parentPost);
+                    }
+                }
 
                 if (dto.Pictures != null && dto.Pictures.Count > 0)
                 {
@@ -59,14 +72,19 @@ namespace Rediter.Api.Services
             }
         }
 
-        public async Task<IList<PostFeedDTO>> GetPostsByUser(string userUuid, DateTime? lastCreatedAt, string? lastId, int pageSize, string user)
+        public async Task<IList<PostFeedDTO>> GetPostsByUser(Guid userUuid, DateTime? lastCreatedAt, Guid? lastId, int pageSize, Guid currentUserId)
         {
-            return await _postrepository.GetUserFeedAsync(userUuid, lastCreatedAt, lastId, pageSize, user);
+            return await _postrepository.GetUserFeedAsync(userUuid, lastCreatedAt, lastId, pageSize, currentUserId);
         }
 
-        public async Task<IList<PostFeedDTO>> SearchPosts(string query, DateTime? lastCreatedAt, string? lastId, int pageSize, bool onlyWithMedia = false, string userId = "")
+        public async Task<IList<PostFeedDTO>> SearchPosts(string query, DateTime? lastCreatedAt, Guid? lastId, int pageSize, bool onlyWithMedia = false, Guid? currentUserId = null)
         {
-            return await _postrepository.SearchFeedAsync(query, lastCreatedAt, lastId, pageSize, onlyWithMedia, userId: userId);
+            return await _postrepository.SearchPosts(query, lastCreatedAt, lastId, pageSize, onlyWithMedia, currentUserId: currentUserId, fetchChildPosts: false);
+        }
+
+        public async Task<IList<PostFeedDTO>> SearchComments(DateTime? lastCreatedAt, Guid? lastId, int pageSize, Guid postParentId, bool onlyWithMedia = false, Guid? currentUserId = null)
+        {
+            return await _postrepository.SearchPosts("", lastCreatedAt, lastId, pageSize, parentPostID: postParentId, currentUserId: currentUserId, fetchChildPosts: false);
         }
 
         public async Task UpdatePost(UpdatePostDTO dto, string postId)
@@ -143,7 +161,7 @@ namespace Rediter.Api.Services
 
         public async Task<IList<string>> GetAllMidiaNames(string userId)
         {
-            return await _postrepository.GetAllMidiaNames(userId);
+            return await _postrepository.GetAllMidiaNames(new Guid(userId));
         }
 
         public async Task LikePost(string postId, string userId)
@@ -161,13 +179,14 @@ namespace Rediter.Api.Services
             if (alreadyLiked)
                 return;
 
-            await _postrepository.AddLike(new UserPostLike
+            UserPostLike like = new UserPostLike
             {
                 PostId = post.Id,
                 UserId = parsedUserId,
                 CreatedAt = DateTime.UtcNow
-            });
+            };
 
+            await _postUserLikeService.InsertAsync(like);
             await _postrepository.IncrementLikesCount(post.Id);
         }
 
@@ -197,6 +216,18 @@ namespace Rediter.Api.Services
         public async Task<PostFeedDTO?> GetPostById(string postId, string userUuid)
         {
             return await _postrepository.GetPostById(new Guid(postId), new Guid(userUuid));
+        }
+
+        public async Task AddComment(string postId, NewPostDTO dto, string userUuid)
+        {
+            try
+            {
+                await NewPost(dto, userUuid);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
         }
     }
 }

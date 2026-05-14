@@ -15,8 +15,8 @@ namespace Rediter.Api.Migrations
                 name: "PICTURES",
                 columns: table => new
                 {
-                    ID = table.Column<int>(type: "NUMBER(10)", nullable: false)
-                        .Annotation("Oracle:Identity", "START WITH 1 INCREMENT BY 1"),
+                    ID = table.Column<Guid>(type: "RAW(16)", nullable: false),
+                    CREATED_AT = table.Column<DateTime>(type: "TIMESTAMP(7)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     FILE_NAME = table.Column<string>(type: "NVARCHAR2(255)", maxLength: 255, nullable: false),
                     STORAGE_PATH = table.Column<string>(type: "NVARCHAR2(500)", maxLength: 500, nullable: false),
                     MIME_TYPE = table.Column<string>(type: "NVARCHAR2(100)", maxLength: 100, nullable: false),
@@ -36,8 +36,8 @@ namespace Rediter.Api.Migrations
                     EMAIL = table.Column<string>(type: "NVARCHAR2(255)", maxLength: 255, nullable: false),
                     PASSWORD = table.Column<string>(type: "NVARCHAR2(2000)", nullable: true),
                     CREATED_AT = table.Column<DateTime>(type: "TIMESTAMP(7)", nullable: false),
-                    PROFILE_PICTURE_ID = table.Column<int>(type: "NUMBER(10)", nullable: true),
-                    PROFILE_COVER_ID = table.Column<int>(type: "NUMBER(10)", nullable: true),
+                    PROFILE_PICTURE_ID = table.Column<Guid>(type: "RAW(16)", nullable: true),
+                    PROFILE_COVER_ID = table.Column<Guid>(type: "RAW(16)", nullable: true),
                     IS_VERIFIED = table.Column<bool>(type: "NUMBER(1)", nullable: false, defaultValue: false),
                     VERIFICATION_CODE = table.Column<string>(type: "NVARCHAR2(2000)", nullable: true),
                     REFRESH_TOKEN = table.Column<string>(type: "NVARCHAR2(2000)", nullable: true),
@@ -96,21 +96,23 @@ namespace Rediter.Api.Migrations
                 name: "USER_FOLLOWERS",
                 columns: table => new
                 {
-                    FOLLOWER = table.Column<Guid>(type: "RAW(16)", nullable: false),
-                    FOLLOWING = table.Column<Guid>(type: "RAW(16)", nullable: false)
+                    ID = table.Column<Guid>(type: "RAW(16)", nullable: false),
+                    CREATED_AT = table.Column<DateTime>(type: "TIMESTAMP(7)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    FOLLOWER_ID = table.Column<Guid>(type: "RAW(16)", nullable: false),
+                    FOLLOWING_ID = table.Column<Guid>(type: "RAW(16)", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_USER_FOLLOWERS", x => new { x.FOLLOWER, x.FOLLOWING });
+                    table.PrimaryKey("PK_USER_FOLLOWERS", x => x.ID);
                     table.ForeignKey(
-                        name: "FK_USER_FOLLOWERS_USERS_FOLLOWER",
-                        column: x => x.FOLLOWER,
+                        name: "FK_USER_FOLLOWERS_USERS_FOLLOWER_ID",
+                        column: x => x.FOLLOWER_ID,
                         principalTable: "USERS",
                         principalColumn: "ID",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_USER_FOLLOWERS_USERS_FOLLOWING",
-                        column: x => x.FOLLOWING,
+                        name: "FK_USER_FOLLOWERS_USERS_FOLLOWING_ID",
+                        column: x => x.FOLLOWING_ID,
                         principalTable: "USERS",
                         principalColumn: "ID",
                         onDelete: ReferentialAction.Restrict);
@@ -122,9 +124,9 @@ namespace Rediter.Api.Migrations
                 {
                     ID = table.Column<Guid>(type: "RAW(16)", nullable: false),
                     POST_ID = table.Column<Guid>(type: "RAW(16)", nullable: false),
-                    PICTURE_ID = table.Column<int>(type: "NUMBER(10)", nullable: false),
+                    PICTURE_ID = table.Column<Guid>(type: "RAW(16)", nullable: false),
                     DISPLAY_ORDER = table.Column<int>(type: "NUMBER(10)", nullable: false, defaultValue: 0),
-                    CREATED_AT = table.Column<DateTime>(type: "TIMESTAMP(7)", nullable: false)
+                    CREATED_AT = table.Column<DateTime>(type: "TIMESTAMP(7)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
                 },
                 constraints: table =>
                 {
@@ -147,13 +149,14 @@ namespace Rediter.Api.Migrations
                 name: "USER_POST_LIKES",
                 columns: table => new
                 {
+                    ID = table.Column<Guid>(type: "RAW(16)", nullable: false),
                     USER_ID = table.Column<Guid>(type: "RAW(16)", nullable: false),
                     POST_ID = table.Column<Guid>(type: "RAW(16)", nullable: false),
-                    CREATED_AT = table.Column<DateTime>(type: "TIMESTAMP(7)", nullable: false)
+                    CREATED_AT = table.Column<DateTime>(type: "TIMESTAMP(7)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_USER_POST_LIKES", x => new { x.USER_ID, x.POST_ID });
+                    table.PrimaryKey("PK_USER_POST_LIKES", x => x.ID);
                     table.ForeignKey(
                         name: "FK_USER_POST_LIKES_POSTS_POST_ID",
                         column: x => x.POST_ID,
@@ -189,14 +192,26 @@ namespace Rediter.Api.Migrations
                 column: "USERID");
 
             migrationBuilder.CreateIndex(
-                name: "IX_USER_FOLLOWERS_FOLLOWING",
+                name: "IX_USER_FOLLOWERS_FOLLOWER_ID_FOLLOWING_ID",
                 table: "USER_FOLLOWERS",
-                column: "FOLLOWING");
+                columns: new[] { "FOLLOWER_ID", "FOLLOWING_ID" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_USER_FOLLOWERS_FOLLOWING_ID",
+                table: "USER_FOLLOWERS",
+                column: "FOLLOWING_ID");
 
             migrationBuilder.CreateIndex(
                 name: "IX_USER_POST_LIKES_POST_ID",
                 table: "USER_POST_LIKES",
                 column: "POST_ID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_USER_POST_LIKES_USER_ID_POST_ID",
+                table: "USER_POST_LIKES",
+                columns: new[] { "USER_ID", "POST_ID" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_USERS_PROFILE_COVER_ID",

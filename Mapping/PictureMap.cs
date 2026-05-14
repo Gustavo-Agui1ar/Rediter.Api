@@ -16,6 +16,10 @@ public class PictureMap : IEntityTypeConfiguration<Picture>
             .HasColumnName("id")
             .ValueGeneratedOnAdd(); 
 
+        builder.Property(x => x.CreatedAt)
+            .HasColumnName("created_at")
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
         builder.Property(x => x.FileName)
             .HasColumnName("file_name")
             .IsRequired()

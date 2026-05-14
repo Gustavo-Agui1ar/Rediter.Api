@@ -145,7 +145,7 @@ namespace Rediter.Api.Controllers
                 if (string.IsNullOrWhiteSpace(userIdStr))
                     return BadRequest("Session Expired");
 
-                IList<UserFeedInfoDTO> users = await _userService.SearchUsers(query, lastCreatedAt, lastId, pageSize, userIdStr);
+                IList<UserFeedInfoDTO> users = await _userService.SearchUsers(query, lastCreatedAt, lastId != null ? Guid.Parse(lastId) : (Guid?)null, pageSize, Guid.Parse(userIdStr));
                 return Ok(users);
             }
             catch (Exception ex)

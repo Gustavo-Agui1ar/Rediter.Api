@@ -12,7 +12,7 @@ using Rediter.Api.Data;
 namespace Rediter.Api.Migrations
 {
     [DbContext(typeof(DataContext))]
-    [Migration("20260511213650_InitialMigration")]
+    [Migration("20260514144850_InitialMigration")]
     partial class InitialMigration
     {
         /// <inheritdoc />
@@ -30,12 +30,16 @@ namespace Rediter.Api.Migrations
 
             modelBuilder.Entity("Rediter.Api.Models.Picture", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("NUMBER(10)")
+                        .HasColumnType("RAW(16)")
                         .HasColumnName("ID");
 
-                    OraclePropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TIMESTAMP(7)")
+                        .HasColumnName("CREATED_AT")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("FileName")
                         .IsRequired()
@@ -127,8 +131,10 @@ namespace Rediter.Api.Migrations
                         .HasColumnName("ID");
 
                     b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("TIMESTAMP(7)")
-                        .HasColumnName("CREATED_AT");
+                        .HasColumnName("CREATED_AT")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<int>("DisplayOrder")
                         .ValueGeneratedOnAdd()
@@ -136,8 +142,9 @@ namespace Rediter.Api.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("DISPLAY_ORDER");
 
-                    b.Property<int>("PictureId")
-                        .HasColumnType("NUMBER(10)")
+                    b.Property<Guid>("PictureId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("RAW(16)")
                         .HasColumnName("PICTURE_ID");
 
                     b.Property<Guid>("PostId")
@@ -192,12 +199,12 @@ namespace Rediter.Api.Migrations
                         .HasColumnType("NVARCHAR2(2000)")
                         .HasColumnName("PASSWORD");
 
-                    b.Property<int?>("ProfileCoverId")
-                        .HasColumnType("NUMBER(10)")
+                    b.Property<Guid?>("ProfileCoverId")
+                        .HasColumnType("RAW(16)")
                         .HasColumnName("PROFILE_COVER_ID");
 
-                    b.Property<int?>("ProfilePictureId")
-                        .HasColumnType("NUMBER(10)")
+                    b.Property<Guid?>("ProfilePictureId")
+                        .HasColumnType("RAW(16)")
                         .HasColumnName("PROFILE_PICTURE_ID");
 
                     b.Property<string>("RefreshToken")
@@ -223,42 +230,66 @@ namespace Rediter.Api.Migrations
 
             modelBuilder.Entity("Rediter.Api.Models.UserFollower", b =>
                 {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("RAW(16)")
+                        .HasColumnName("ID");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TIMESTAMP(7)")
+                        .HasColumnName("CREATED_AT")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
                     b.Property<Guid>("FollowerId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("RAW(16)")
-                        .HasColumnName("FOLLOWER");
+                        .HasColumnName("FOLLOWER_ID");
 
                     b.Property<Guid>("FollowingId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("RAW(16)")
-                        .HasColumnName("FOLLOWING");
+                        .HasColumnName("FOLLOWING_ID");
 
-                    b.HasKey("FollowerId", "FollowingId");
+                    b.HasKey("Id");
 
                     b.HasIndex("FollowingId");
+
+                    b.HasIndex("FollowerId", "FollowingId")
+                        .IsUnique();
 
                     b.ToTable("USER_FOLLOWERS", (string)null);
                 });
 
             modelBuilder.Entity("Rediter.Api.Models.UserPostLike", b =>
                 {
-                    b.Property<Guid>("UserId")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("RAW(16)")
-                        .HasColumnName("USER_ID");
+                        .HasColumnName("ID");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TIMESTAMP(7)")
+                        .HasColumnName("CREATED_AT")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<Guid>("PostId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("RAW(16)")
                         .HasColumnName("POST_ID");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TIMESTAMP(7)")
-                        .HasColumnName("CREATED_AT");
+                    b.Property<Guid>("UserId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("RAW(16)")
+                        .HasColumnName("USER_ID");
 
-                    b.HasKey("UserId", "PostId");
+                    b.HasKey("Id");
 
                     b.HasIndex("PostId");
+
+                    b.HasIndex("UserId", "PostId")
+                        .IsUnique();
 
                     b.ToTable("USER_POST_LIKES", (string)null);
                 });

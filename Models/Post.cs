@@ -1,6 +1,6 @@
 ﻿namespace Rediter.Api.Models;
 
-public class Post
+public class Post : IEntity
 {
     public virtual Guid Id { get; set; }
     public virtual Guid UserId { get; set; }

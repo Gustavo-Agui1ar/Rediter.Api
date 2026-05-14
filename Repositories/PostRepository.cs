@@ -1,79 +1,43 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore;
 using MiNET.Blocks;
 using Rediter.Api.Data;
 using Rediter.Api.DTOs;
 using Rediter.Api.Models;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Rediter.Api.Repositories
 {
     public class PostRepository : BaseRepository<Post>
     {
-        private readonly UserPostLikeRepository _likeRepository;
-        public PostRepository(DataContext data, UserPostLikeRepository likeRepository) : base(data)
+        public PostRepository(DataContext data) : base(data)
         {
-            _likeRepository = likeRepository;
         }
 
-        public async Task<IList<PostFeedDTO>> GetUserFeedAsync( 
-            string userId,
+        public async Task<IList<PostFeedDTO>> GetUserFeedAsync(
+            Guid userId,
             DateTime? lastCreatedAt,
-            string? lastId,
+            Guid? lastId,
             int pageSize,
-            string user,
+            Guid currentUserId,
             CancellationToken cancellationToken = default)
         {
-            var parsedUserId = Guid.Parse(userId);
-            var query = _dbSet.AsNoTracking().Where(p => p.UserId == parsedUserId);
+            ValidatePaginationState(lastCreatedAt, lastId);
 
-            if (lastCreatedAt.HasValue != !string.IsNullOrEmpty(lastId))
-            {
-                throw new ArgumentException("Para a paginação, 'lastCreatedAt' e 'lastId' devem ser fornecidos juntos ou ambos nulos.");
-            }
+            var query = _dbSet.AsNoTracking().Where(p => p.UserId == userId);
 
-            if (lastCreatedAt.HasValue && !string.IsNullOrEmpty(lastId))
-            {
-                var parsedLastId = Guid.Parse(lastId);
-
-                query = query.Where(p =>
-                    p.CreatedAt < lastCreatedAt.Value ||
-                    (p.CreatedAt == lastCreatedAt.Value && p.Id.CompareTo(parsedLastId) < 0)
-                );
-            }
-
-            Guid userFol = new Guid(user);
-
-            return await query
+            return await ApplyKeysetPagination(query, lastCreatedAt, lastId)
                 .OrderByDescending(p => p.CreatedAt)
                 .ThenByDescending(p => p.Id)
-                .Select(p => new PostFeedDTO
-                {
-                    Id = p.Id.ToString(),
-                    UserName = p.User!.Name,
-                    ImageProfileUrl = p.User.ProfilePicture != null ? p.User.ProfilePicture.FileName : null,
-                    Text = p.Content,
-                    Location = p.LocationName,
-                    ImageUrls = p.PostImages
-                        .Select(pi => pi.Picture != null ? pi.Picture.FileName : null)
-                        .Where(fileName => fileName != null)
-                        .Select(fileName => fileName!) 
-                        .ToList(),
-                    Edited = p.CreatedAt != p.UpdatedAt,
-                    CreatedAt = p.CreatedAt,
-                    LikesCount = p.LikesCount,
-                    LikedByCurrentUser = p.Likes.Any(x => x.UserId == userFol)
-                })
+                .Select(MapToPostFeedDTO(currentUserId))
                 .Take(pageSize)
-                .ToListAsync(cancellationToken); 
+                .ToListAsync(cancellationToken);
         }
 
-        public async Task<IList<string>> GetAllMidiaNames(string userId)
+        public async Task<IList<string>> GetAllMidiaNames(Guid userId) 
         {
-            var parsedUserId = Guid.Parse(userId);
-
             return await _dbSet
                 .AsNoTracking()
-                .Where(p => p.UserId == parsedUserId)
+                .Where(p => p.UserId == userId)
                 .SelectMany(p => p.PostImages)
                 .Where(pi => pi.Picture != null)
                 .OrderBy(pi => pi.CreatedAt)
@@ -81,108 +45,59 @@ namespace Rediter.Api.Repositories
                 .ToListAsync();
         }
 
-        public async Task<IList<PostFeedDTO>> SearchFeedAsync(
+        public async Task<IList<PostFeedDTO>> SearchPosts(
              string searchTerm,
              DateTime? lastCreatedAt,
-             string? lastId,
+             Guid? lastId, 
              int pageSize,
-             bool onlyWithMedia = false, 
+             bool onlyWithMedia = false,
+             Guid? parentPostID = null, 
+             bool fetchChildPosts = false,
              CancellationToken cancellationToken = default,
-             string userId = "")
+             Guid? currentUserId = null) 
         {
+            ValidatePaginationState(lastCreatedAt, lastId);
+
             var query = _dbSet.AsNoTracking().AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
-                var termLower = searchTerm.ToLower();
                 query = query.Where(p =>
-                    (p.User != null && p.User.Name.ToLower().Contains(termLower)) ||
-                    (p.Content != null && p.Content.ToLower().Contains(termLower))
+                    (p.User != null && p.User.Name.Contains(searchTerm)) ||
+                    (p.Content != null && p.Content.Contains(searchTerm))
                 );
             }
+
+            if (parentPostID.HasValue)
+                query = query.Where(p => p.ParentPostId == parentPostID.Value);
+            else if (!fetchChildPosts)
+                query = query.Where(x => x.ParentPostId == null);
 
             if (onlyWithMedia)
-            {
-                query = query.Where(p => p.PostImages.Any());
-            }
+                query = query.Where(p => p.PostImages.Any(pi => pi.Picture != null));
 
-            if (lastCreatedAt.HasValue != !string.IsNullOrEmpty(lastId))
-            {
-                throw new ArgumentException("Para a paginação, 'lastCreatedAt' e 'lastId' devem ser fornecidos juntos ou ambos nulos.");
-            }
+            Guid safeUserId = currentUserId ?? Guid.Empty;
 
-            if (lastCreatedAt.HasValue && !string.IsNullOrEmpty(lastId))
-            {
-                var parsedLastId = Guid.Parse(lastId);
-
-                query = query.Where(p =>
-                    p.CreatedAt < lastCreatedAt.Value ||
-                    (p.CreatedAt == lastCreatedAt.Value && p.Id.CompareTo(parsedLastId) < 0)
-                );
-            }
-
-            Guid userUuid = new Guid(userId);
-
-            return await query
+            return await ApplyKeysetPagination(query, lastCreatedAt, lastId)
                 .OrderByDescending(p => p.CreatedAt)
                 .ThenByDescending(p => p.Id)
-                .Select(p => new PostFeedDTO
-                {
-                    Id = p.Id.ToString(),
-                    UserName = p.User!.Name,
-                    ImageProfileUrl = p.User.ProfilePicture != null ? p.User.ProfilePicture.FileName : null,
-                    Text = p.Content,
-                    Location = p.LocationName,
-                    ImageUrls = p.PostImages
-                        .Select(pi => pi.Picture != null ? pi.Picture.FileName : null)
-                        .Where(fileName => fileName != null)
-                        .Select(fileName => fileName!)
-                        .ToList(),
-                    Edited = p.CreatedAt != p.UpdatedAt,
-                    CreatedAt = p.CreatedAt,
-                    LikesCount = p.LikesCount,
-                    LikedByCurrentUser = p.Likes.Any(l => l.UserId == userUuid),
-                    PostUserId = p.UserId.ToString()
-                })
+                .Select(MapToPostFeedDTO(safeUserId))
                 .Take(pageSize)
                 .ToListAsync(cancellationToken);
         }
 
-        public async Task<PostFeedDTO?> GetPostById(Guid postId, Guid userId)
+        public async Task<PostFeedDTO?> GetPostById(Guid postId, Guid currentUserId)
         {
             return await _dbSet
                 .AsNoTracking()
                 .Where(p => p.Id == postId)
-                .Select(p => new PostFeedDTO
-                {
-                    Id = p.Id.ToString(),
-                    UserName = p.User!.Name,
-                    ImageProfileUrl = p.User.ProfilePicture != null ? p.User.ProfilePicture.FileName : null,
-                    Text = p.Content,
-                    Location = p.LocationName,
-
-                    ImageUrls = p.PostImages
-                        .Where(pi => pi.Picture != null)
-                        .Select(pi => pi.Picture!.FileName)
-                        .ToList(),
-
-                    Edited = p.CreatedAt != p.UpdatedAt,
-                    CreatedAt = p.CreatedAt,
-                    LikesCount = p.LikesCount,
-
-                    LikedByCurrentUser = p.Likes.Any(l => l.UserId == userId),
-
-                    PostUserId = p.UserId.ToString(),
-
-                    IsFollowing = p.User.Followers.Any(f => f.FollowerId == userId),
-
-                    OwnPost = p.UserId == userId
-                })
+                .Select(MapToPostFeedDTO(currentUserId))
                 .FirstOrDefaultAsync();
         }
+
         public async Task AddLike(UserPostLike like)
         {
-            await _likeRepository.Insert(like);
+            await _context.Set<UserPostLike>().AddAsync(like);
         }
 
         public async Task IncrementLikesCount(Guid postId)
@@ -190,6 +105,38 @@ namespace Rediter.Api.Repositories
             await _context.Posts
                 .Where(p => p.Id == postId)
                 .ExecuteUpdateAsync(s => s.SetProperty(p => p.LikesCount, p => p.LikesCount + 1));
+        }
+
+        private static void ValidatePaginationState(DateTime? lastCreatedAt, Guid? lastId)
+        {
+            if (lastCreatedAt.HasValue != lastId.HasValue)
+            {
+                throw new ArgumentException("Para a paginação, 'lastCreatedAt' e 'lastId' devem ser fornecidos juntos ou ambos nulos.");
+            }
+        }
+
+        private static Expression<Func<Post, PostFeedDTO>> MapToPostFeedDTO(Guid currentUserId)
+        {
+            return p => new PostFeedDTO
+            {
+                Id = p.Id.ToString(),
+                UserName = p.User!.Name,
+                ImageProfileUrl = p.User.ProfilePicture != null ? p.User.ProfilePicture.FileName : null,
+                Text = p.Content,
+                Location = p.LocationName,
+                ImageUrls = p.PostImages
+                    .Where(pi => pi.Picture != null)
+                    .Select(pi => pi.Picture!.FileName)
+                    .ToList(),
+                Edited = p.CreatedAt != p.UpdatedAt,
+                CreatedAt = p.CreatedAt,
+                LikesCount = p.LikesCount,
+                CommentsCount = p.CommentsCount, 
+                LikedByCurrentUser = currentUserId != Guid.Empty && p.Likes.Any(l => l.UserId == currentUserId),
+                PostUserId = p.UserId.ToString(),
+                IsFollowing = currentUserId != Guid.Empty && p.User.Followers.Any(f => f.FollowerId == currentUserId),
+                OwnPost = p.UserId == currentUserId
+            };
         }
     }
 }

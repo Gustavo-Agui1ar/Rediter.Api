@@ -1,7 +1,8 @@
 ﻿namespace Rediter.Api.Models;
 
-public class UserPostLike
+public class UserPostLike : IEntity
 {
+    public virtual Guid Id { get; set; }
     public virtual Guid UserId { get; set; }
 
     public virtual User User { get; set; } = null!;

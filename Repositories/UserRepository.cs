@@ -1,5 +1,4 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Rediter.Api.Data;
 using Rediter.Api.DTOs;
@@ -7,75 +6,58 @@ using Rediter.Api.Models;
 
 namespace Rediter.Api.Repositories
 {
-    public class UserRepository : BaseRepository<Models.User>
+    public class UserRepository : BaseRepository<User>
     {
         public UserRepository(DataContext data) : base(data)
         {
         }
 
-        public async Task<string> GetCodeByIdAsync(string userId)
+        public async Task<string> GetCodeByIdAsync(Guid userId)
         {
-            if (!Guid.TryParse(userId, out var parsedId))
-                return string.Empty; 
-
             var code = await _dbSet
-                .AsNoTracking() 
-                .Where(u => u.Id == parsedId)
-                .Select(u => u.VerificationCode) 
+                .AsNoTracking()
+                .Where(u => u.Id == userId)
+                .Select(u => u.VerificationCode)
                 .FirstOrDefaultAsync();
 
             return code ?? string.Empty;
         }
 
-        public async Task<User?> GetByEmailAsync(string email)
+        public async Task<User?> GetByEmailAsync(string email, bool trackChanges = true)
         {
-            return await _dbSet
-                .FirstOrDefaultAsync(u => u.Email == email);
+            var query = trackChanges ? _dbSet : _dbSet.AsNoTracking();
+            return await query.FirstOrDefaultAsync(u => u.Email == email);
         }
 
-        public async Task<User?> GetUserByRefreshAsync(string refresh)
+        public async Task<User?> GetUserByRefreshAsync(string refresh, bool trackChanges = true)
         {
-            return await _dbSet
-                .FirstOrDefaultAsync(u => u.RefreshToken == refresh);
+            var query = trackChanges ? _dbSet : _dbSet.AsNoTracking();
+            return await query.FirstOrDefaultAsync(u => u.RefreshToken == refresh);
         }
 
-        public async Task<List<UserFeedInfoDTO>> SearchUsers(string query, DateTime? lastCreatedAt, string? lastId, int pageSize, string userId)
+        public async Task<IList<UserFeedInfoDTO>> SearchUsers(
+            string query,
+            DateTime? lastCreatedAt,
+            Guid? lastId,
+            int pageSize,
+            Guid currentUserId, 
+            CancellationToken cancellationToken = default)
         {
-            Guid currentUserGuid = Guid.Parse(userId);
+            ValidatePaginationState(lastCreatedAt, lastId);
 
-            IQueryable<User> usersQuery = _dbSet.AsQueryable();
+            IQueryable<User> usersQuery = _dbSet.AsNoTracking();
 
             if (!string.IsNullOrWhiteSpace(query))
             {
-                usersQuery = usersQuery.Where(u => u.Name.ToUpper().Contains(query.ToUpper()));
+                usersQuery = usersQuery.Where(u => u.Name.Contains(query));
             }
 
-            if (lastCreatedAt.HasValue && !string.IsNullOrWhiteSpace(lastId))
-            {
-                Guid lastGuid = Guid.Parse(lastId); 
-
-                usersQuery = usersQuery.Where(u =>
-                    u.CreatedAt < lastCreatedAt ||
-                    (u.CreatedAt == lastCreatedAt && u.Id.CompareTo(lastGuid) < 0));
-            }
-
-            var users = await usersQuery
+            return await ApplyKeysetPagination(usersQuery, lastCreatedAt, lastId)
                 .OrderByDescending(u => u.CreatedAt)
                 .ThenByDescending(u => u.Id)
+                .Select(MapToUserFeedInfoDTO(currentUserId))
                 .Take(pageSize)
-                .Select(u => new UserFeedInfoDTO
-                {
-                    UserID = u.Id.ToString(),
-                    UserName = u.Name,
-                    ProfileImageName = u.ProfilePicture != null ? u.ProfilePicture.FileName : null,
-                    CreatedAt = u.CreatedAt,
-                    Description = u.Description,
-                    OwnProfile = u.Id == currentUserGuid,
-                    IsFollowing = u.Followers.Any(f => f.FollowerId == currentUserGuid)
-                })
-                .ToListAsync();
-
-            return users;
+                .ToListAsync(cancellationToken);
         }
 
         public async Task<bool> IsFollowingAsync(Guid currentUserId, Guid targetUserId)
@@ -83,8 +65,30 @@ namespace Rediter.Api.Repositories
             if (currentUserId == targetUserId)
                 return false;
 
-            return await _context.UserFollowers
+            return await _context.Set<UserFollower>()
                 .AnyAsync(f => f.FollowerId == currentUserId && f.FollowingId == targetUserId);
+        }
+
+        private static void ValidatePaginationState(DateTime? lastCreatedAt, Guid? lastId)
+        {
+            if (lastCreatedAt.HasValue != lastId.HasValue)
+            {
+                throw new ArgumentException("Para a paginação, 'lastCreatedAt' e 'lastId' devem ser fornecidos juntos ou ambos nulos.");
+            }
+        }
+
+        private static Expression<Func<User, UserFeedInfoDTO>> MapToUserFeedInfoDTO(Guid currentUserId)
+        {
+            return u => new UserFeedInfoDTO
+            {
+                UserID = u.Id.ToString(),
+                UserName = u.Name,
+                ProfileImageName = u.ProfilePicture != null ? u.ProfilePicture.FileName : null,
+                CreatedAt = u.CreatedAt,
+                Description = u.Description,
+                OwnProfile = u.Id == currentUserId,
+                IsFollowing = currentUserId != Guid.Empty && u.Followers.Any(f => f.FollowerId == currentUserId)
+            };
         }
     }
 }

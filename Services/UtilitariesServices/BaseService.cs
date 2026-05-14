@@ -1,8 +1,9 @@
-﻿using Rediter.Api.Repositories;
+﻿using Rediter.Api.Models;
+using Rediter.Api.Repositories;
 
 namespace Rediter.Api.Services.UtilitariesServices
 {
-    public class BaseService<T> : IService<T> where T : class
+    public class BaseService<T> : IService<T> where T : class, IEntity
     {
         protected readonly BaseRepository<T> _repository;
 

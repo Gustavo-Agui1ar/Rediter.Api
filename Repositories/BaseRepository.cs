@@ -1,10 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage; // Necessário para IDbContextTransaction
 using Rediter.Api.Data;
+using Rediter.Api.Models;
 
 namespace Rediter.Api.Repositories
 {
-    public class BaseRepository<T> where T : class
+    public class BaseRepository<T> where T : class, IEntity
     {
         protected readonly DataContext _context;
         protected readonly DbSet<T> _dbSet;
@@ -101,6 +102,18 @@ namespace Rediter.Api.Repositories
         public virtual async Task<T?> GetById(int id)
         {
             return await _dbSet.FindAsync(id);
+        }
+
+        protected IQueryable<T> ApplyKeysetPagination(IQueryable<T> query, DateTime? lastCreatedAt, Guid? lastId)
+        {
+            if (lastCreatedAt.HasValue && lastId.HasValue)
+            {
+                return query.Where(e =>
+                    e.CreatedAt < lastCreatedAt.Value ||
+                    (e.CreatedAt == lastCreatedAt.Value && e.Id.CompareTo(lastId.Value) < 0)
+                );
+            }
+            return query;
         }
     }
 }

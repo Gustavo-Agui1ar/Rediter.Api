@@ -51,7 +51,7 @@ namespace Rediter.Api.Controllers
                 if (userUuid == null)
                     return Unauthorized("Usuário não encontrado no token.");
 
-                var posts = await _postService.GetPostsByUser(userUuid, lastCreatedAt, lastId, pageSize, userUuid);
+                var posts = await _postService.GetPostsByUser(Guid.Parse(userUuid), lastCreatedAt, Guid.TryParse(lastId, out var lastIdGuid) ? lastIdGuid : (Guid?)null, pageSize, Guid.Parse(userUuid));
                 return Ok(posts);
             }
             catch (Exception ex)
@@ -67,13 +67,13 @@ namespace Rediter.Api.Controllers
             try
             {
                 string? userUuid = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                
+
                 if (userUuid == null)
                     return Unauthorized("Usuário não encontrado no token.");
-                
+
                 PostFeedDTO? post = await _postService.GetPostById(id, userUuid);
 
-                if(post == null)
+                if (post == null)
                     return NotFound("Post não encontrado.");
 
                 return Ok(post);
@@ -112,7 +112,7 @@ namespace Rediter.Api.Controllers
                 if (userUuid == null)
                     return Unauthorized("Usuário não encontrado no token.");
 
-                var posts = await _postService.SearchPosts(query, lastCreatedAt, lastId, pageSize, onlyWithMedia, userUuid);
+                var posts = await _postService.SearchPosts(query, lastCreatedAt, Guid.TryParse(lastId, out var lastIdGuid) ? lastIdGuid : (Guid?)null, pageSize, onlyWithMedia, Guid.Parse(userUuid));
                 return Ok(posts);
             }
             catch (Exception ex)
@@ -171,7 +171,7 @@ namespace Rediter.Api.Controllers
                 if (string.IsNullOrWhiteSpace(userId))
                     return BadRequest("O ID do usuário é obrigatório.");
 
-                var posts = await _postService.GetPostsByUser(userId, lastCreatedAt, lastId, pageSize, userUuid);
+                var posts = await _postService.GetPostsByUser(Guid.Parse(userId), lastCreatedAt, Guid.TryParse(lastId, out var lastIdGuid) ? lastIdGuid : (Guid?)null, pageSize, Guid.Parse(userUuid));
                 return Ok(posts);
             }
             catch (Exception ex)
@@ -204,9 +204,9 @@ namespace Rediter.Api.Controllers
         [HttpPost("{id}/like")]
         public async Task<IActionResult> LikePost([FromRoute] string id)
         {
+            var userUuid = User.FindFirstValue(ClaimTypes.NameIdentifier);
             try
             {
-                var userUuid = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (userUuid == null)
                     return Unauthorized("Usuário não encontrado no token.");
 
@@ -217,6 +217,7 @@ namespace Rediter.Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao curtir post {PostId}", id);
+                await _postService.UnlikePost(id, userUuid!);
                 return StatusCode(500, "Erro interno do servidor.");
             }
         }
@@ -235,6 +236,44 @@ namespace Rediter.Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao descurtir post {PostId}", id);
+                return StatusCode(500, "Erro interno do servidor.");
+            }
+        }
+
+        [HttpPost("{postId}/comments")]
+        public async Task<IActionResult> PostComment([FromRoute] string postId, [FromForm] NewPostDTO dto)
+        {
+            try
+            {
+                var userUuid = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (userUuid == null)
+                    return Unauthorized("Usuário não encontrado no token.");
+                await _postService.AddComment(postId, dto, userUuid);
+                return Ok(new { message = "Comentário adicionado com sucesso" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao adicionar comentário ao post {PostId}", postId);
+                return StatusCode(500, "Erro interno do servidor.");
+            }
+        }
+
+        [HttpGet("{postId}/comments")]
+        public async Task<IActionResult> GetComments([FromRoute] string postId, [FromQuery] DateTime? lastCreatedAt, [FromQuery] string? lastId, [FromQuery] int pageSize)
+        {
+            try
+            {
+                var userUuid = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (userUuid == null)
+                    return Unauthorized("Usuário não encontrado no token.");
+                    
+                var comments = await _postService.SearchComments(lastCreatedAt, Guid.TryParse(lastId, out var lastIdGuid) ? lastIdGuid : (Guid?)null, pageSize, Guid.Parse(postId), currentUserId: Guid.Parse(userUuid));
+
+                return Ok(comments);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao adicionar comentário ao post {PostId}", postId);
                 return StatusCode(500, "Erro interno do servidor.");
             }
         }

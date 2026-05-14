@@ -15,6 +15,10 @@ public class PostImageMap : IEntityTypeConfiguration<PostImage>
         builder.Property(x => x.Id)
             .HasColumnName("id");
 
+        builder.Property(x => x.CreatedAt)
+            .HasColumnName("created_at")
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
         builder.Property(x => x.PostId)
             .HasColumnName("post_id")
             .IsRequired();

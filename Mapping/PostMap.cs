@@ -8,15 +8,12 @@ namespace Rediter.Api.Data.Mappings
     {
         public void Configure(EntityTypeBuilder<Post> builder)
         {
-            // Tabela
             builder.ToTable("Posts");
 
-            // Chave Primária
             builder.HasKey(p => p.Id);
 
-            // Propriedades
             builder.Property(p => p.Content)
-                .HasMaxLength(2000); // Exemplo de limite de caracteres
+                .HasMaxLength(2000); 
 
             builder.Property(p => p.LocationName)
                 .HasMaxLength(255);
@@ -28,29 +25,23 @@ namespace Rediter.Api.Data.Mappings
                 .IsRequired()
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-            // --- Relacionamentos ---
-
-            // 1. Relacionamento com Usuário (Autor)
             builder.HasOne(p => p.User)
-                .WithMany() // Se o User não tiver ICollection<Post>, deixe vazio
+                .WithMany()
                 .HasForeignKey(p => p.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // 2. Auto-relacionamento (Post pai e Respostas/Comentários)
             builder.HasOne(p => p.ParentPost)
                 .WithMany(p => p.Replies)
                 .HasForeignKey(p => p.ParentPostId)
-                .OnDelete(DeleteBehavior.Restrict); // Restrict evita ciclos de cascade
+                .OnDelete(DeleteBehavior.Restrict); 
 
-            // 3. Relacionamento com Imagens (Um para Muitos)
             builder.HasMany(p => p.PostImages)
-                .WithOne() // Se PostImage não tiver a propriedade 'Post', deixe vazio
-                .HasForeignKey("PostId") // Nome da FK no banco de dados
+                .WithOne() 
+                .HasForeignKey("PostId")
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // 4. Relacionamento com Likes (Muitos para Muitos ou 1:N com a tabela associativa)
             builder.HasMany(p => p.Likes)
-                .WithOne() // Ajuste se UserPostLike tiver a propriedade 'Post'
+                .WithOne()
                 .HasForeignKey("PostId")
                 .OnDelete(DeleteBehavior.Cascade);
         }
