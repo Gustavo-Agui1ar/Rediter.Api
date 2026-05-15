@@ -11,7 +11,8 @@ namespace Rediter.Api.Services.UtilitariesServices
         private readonly TokenService _tokenService;
         private readonly string _googleClientId;
         private readonly ILogger<AuthService> _logger;
-        public AuthService(UserService userService, TokenService tokenService, EmailService emailService ,IConfiguration config, ILogger<AuthService> logger)
+
+        public AuthService(UserService userService, TokenService tokenService, EmailService emailService, IConfiguration config, ILogger<AuthService> logger)
         {
             _userService = userService;
             _tokenService = tokenService;
@@ -27,8 +28,8 @@ namespace Rediter.Api.Services.UtilitariesServices
             if (user == null)
                 throw new Exception("User not found");
 
-            if (!inputCode.Equals(user?.VerificationCode) && user?.CreatedAt < user?.CreatedAt.AddDays(1))
-                throw new Exception("Invalid verification code.");
+            if (!inputCode.Equals(user.VerificationCode) || user.CreatedAt.AddDays(1) < DateTime.UtcNow)
+                throw new Exception("Invalid or expired verification code.");
 
             return await GenerateToken(user, true);
         }
@@ -39,10 +40,14 @@ namespace Rediter.Api.Services.UtilitariesServices
             if (user == null)
                 throw new Exception("User not found");
 
-            string verificationCode = new Random(DateTime.Now.Millisecond).Next(100000, 999999).ToString();
+            string verificationCode = Random.Shared.Next(100000, 999999).ToString();
+
             user.VerificationCode = verificationCode;
-            user.CreatedAt = DateTime.UtcNow;
-            await _userService.UpdateAsync(user);
+            user.CreatedAt = DateTime.UtcNow; 
+
+            _userService.Update(user);
+            await _userService.SaveChangesAsync();
+
             await _emailService.SendVerificationCodeAsync(user.Email, user.Name, verificationCode);
         }
 
@@ -53,7 +58,7 @@ namespace Rediter.Api.Services.UtilitariesServices
             if (user == null)
                 throw new Exception("Invalid email.");
 
-            if (!HashService.VerifyPassword(password, user.Password))
+            if (!HashService.VerifyPassword(password, user.Password!))
                 throw new Exception("Invalid password.");
 
             return await GenerateToken(user, true);
@@ -74,9 +79,7 @@ namespace Rediter.Api.Services.UtilitariesServices
             }
             catch (InvalidJwtException ex)
             {
-                _logger.LogError(ex,
-                    "[Auth] Erro real Google JWT");
-
+                _logger.LogError(ex, "[Auth] Erro real Google JWT");
                 throw;
             }
 
@@ -91,28 +94,35 @@ namespace Rediter.Api.Services.UtilitariesServices
                 {
                     Email = userEmail,
                     Name = userName,
-                    Password = "", 
+                    Password = "",
                     VerificationCode = "",
                     CreatedAt = DateTime.UtcNow,
                 };
 
-                await _userService.AddPictureFromGoogle(user!, payload.Picture);
-                await _userService.InsertAsync(user);
+                _userService.Insert(user);
+                await _userService.SaveChangesAsync();
+
+                if (!string.IsNullOrEmpty(payload.Picture))
+                {
+                    await _userService.AddPictureFromGoogle(user, payload.Picture);
+                }
             }
 
             return await GenerateToken(user, true);
         }
 
-        private async Task<TokenRequestDTO> GenerateToken(User? user, bool addDays = false)
+        private async Task<TokenRequestDTO> GenerateToken(User user, bool addDays = false)
         {
-            TokenRequestDTO dto = _tokenService.GenerateToken(user!);
+            TokenRequestDTO dto = _tokenService.GenerateToken(user);
 
-            user?.RefreshToken = dto.RefreshToken;
+            user.RefreshToken = dto.RefreshToken;
 
-            if(addDays)
-                user?.RefreshTokenExpiration = DateTime.UtcNow.AddDays(30);
-            
-            await _userService.UpdateAsync(user!);
+            if (addDays)
+                user.RefreshTokenExpiration = DateTime.UtcNow.AddDays(30);
+
+            _userService.Update(user);
+            await _userService.SaveChangesAsync(); 
+
             return dto;
         }
 

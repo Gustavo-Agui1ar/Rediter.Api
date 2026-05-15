@@ -1,14 +1,13 @@
 ﻿namespace Rediter.Api.DTOs
 {
-    public class UserFeedInfoDTO
+    public record UserFeedInfoDTO
     {
-        public string UserName { get; set; } = null!;
-        public string UserID { get; set; } = string.Empty!;
-        public string? ProfileImageName { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public string? Description { get; set; }
-        public bool OwnProfile { get; set; }
-        public bool IsFollowing { get; set; }
-
+        public string UserName { get; init; } = string.Empty;
+        public string UserID { get; init; } = string.Empty;
+        public DateTime CreatedAt { get; init; }
+        public bool OwnProfile { get; init; }
+        public bool IsFollowing { get; init; }
+        public string? ProfileImageName { get; init; }
+        public string? Description { get; init; }
     }
 }

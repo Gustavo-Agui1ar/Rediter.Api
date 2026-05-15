@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Rediter.Api.DTOs;
 using Rediter.Api.Models;
@@ -19,6 +18,12 @@ namespace Rediter.Api.Controllers
         {
             _userService = userService;
         }
+        private bool TryGetCurrentUserId(out Guid userId)
+        {
+            userId = Guid.Empty;
+            string? userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return !string.IsNullOrWhiteSpace(userIdStr) && Guid.TryParse(userIdStr, out userId);
+        }
 
         // POST: api/users
         [AllowAnonymous]
@@ -27,15 +32,12 @@ namespace Rediter.Api.Controllers
         {
             try
             {
-                if (!ModelState.IsValid)
-                    return BadRequest(ModelState);
-
                 string userId = await _userService.CreateUser(user);
-                return StatusCode(201, new { userId = userId });
+                return StatusCode(201, new { userId });
             }
             catch (Exception ex)
             {
-                return BadRequest($"An error occurred while registering the user: {ex.Message}");
+                return BadRequest(new { message = $"An error occurred while registering the user: {ex.Message}" });
             }
         }
 
@@ -45,47 +47,45 @@ namespace Rediter.Api.Controllers
         {
             try
             {
-                string? userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (string.IsNullOrWhiteSpace(userIdStr))
-                    return Unauthorized("User ID claim not found.");
+                if (!TryGetCurrentUserId(out Guid userId))
+                    return Unauthorized(new { message = "Session Expired or Invalid User ID." });
 
-                User? user = await _userService.GetByGuidAsync(new Guid(userIdStr));
+                User? user = await _userService.GetByGuidAsync(userId);
 
                 if (user == null)
-                    return NotFound("User not found in DB");
+                    return NotFound(new { message = "User not found in DB" });
 
-                UserDTO? userDto = await _userService.GetUserDto(user, user.Id);
+                UserDTO? userDto = await _userService.GetUserDto(user, userId);
 
                 return Ok(userDto);
             }
             catch (Exception ex)
             {
-                return BadRequest($"An error occurred while retrieving the user: {ex.Message}");
+                return BadRequest(new { message = $"An error occurred while retrieving the user: {ex.Message}" });
             }
         }
 
         // GET: api/users/{id}
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetUser([FromRoute] string id)
+        [HttpGet("{id:guid}")]
+        public async Task<IActionResult> GetUser([FromRoute] Guid id)
         {
             try
             {
-                User? user = await _userService.GetByGuidAsync(new Guid(id));
+                if (!TryGetCurrentUserId(out Guid currentUserId))
+                    return Unauthorized(new { message = "Session Expired" });
 
-                string? userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (string.IsNullOrWhiteSpace(userIdStr))
-                    return BadRequest("Session Expired");
+                User? user = await _userService.GetByGuidAsync(id);
 
                 if (user == null)
-                    return BadRequest("User not found");
+                    return NotFound(new { message = "User not found" });
 
-                UserDTO dto = await _userService.GetUserDto(user, new Guid(userIdStr));
+                UserDTO dto = await _userService.GetUserDto(user, currentUserId);
 
                 return Ok(dto);
             }
             catch (Exception e)
             {
-                return BadRequest(e.Message);
+                return BadRequest(new { message = e.Message });
             }
         }
 
@@ -95,14 +95,13 @@ namespace Rediter.Api.Controllers
         {
             try
             {
-                string? userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (string.IsNullOrWhiteSpace(userIdStr))
-                    return Unauthorized("User ID claim not found.");
+                if (!TryGetCurrentUserId(out Guid userId))
+                    return Unauthorized(new { message = "Session Expired or Invalid User ID." });
 
-                User? user = await _userService.GetByGuidAsync(new Guid(userIdStr));
+                User? user = await _userService.GetByGuidAsync(userId);
 
                 if (user == null)
-                    return NotFound("User not found in DB");
+                    return NotFound(new { message = "User not found in DB" });
 
                 await _userService.UpdateUserByUserDTO(dto, user);
 
@@ -110,7 +109,7 @@ namespace Rediter.Api.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest($"An error occurred while updating the user profile: {ex.Message}");
+                return BadRequest(new { message = $"An error occurred while updating the user profile: {ex.Message}" });
             }
         }
 
@@ -120,51 +119,47 @@ namespace Rediter.Api.Controllers
         {
             try
             {
-                string? userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (string.IsNullOrWhiteSpace(userIdStr))
-                    return Unauthorized("User ID claim not found.");
+                if (!TryGetCurrentUserId(out Guid userId))
+                    return Unauthorized(new { message = "Session Expired or Invalid User ID." });
 
-                if (!(await _userService.DeleteByGuidAsync(new Guid(userIdStr))))
-                    return BadRequest("Failed to delete user.");
+                if (!(await _userService.DeleteByGuidAsync(userId)))
+                    return BadRequest(new { message = "Failed to delete user." });
 
                 return NoContent();
             }
             catch (Exception ex)
             {
-                return BadRequest($"An error occurred while deleting the user: {ex.Message}");
+                return BadRequest(new { message = $"An error occurred while deleting the user: {ex.Message}" });
             }
         }
 
         // GET: api/users/search
         [HttpGet("search")]
-        public async Task<IActionResult> SearchUsers([FromQuery] string query, [FromQuery] DateTime? lastCreatedAt, [FromQuery] string? lastId, [FromQuery] int pageSize)
+        public async Task<IActionResult> SearchUsers([FromQuery] string query, [FromQuery] DateTime? lastCreatedAt, [FromQuery] Guid? lastId, [FromQuery] int pageSize)
         {
             try
             {
-                string? userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (string.IsNullOrWhiteSpace(userIdStr))
-                    return BadRequest("Session Expired");
+                if (!TryGetCurrentUserId(out Guid currentUserId))
+                    return Unauthorized(new { message = "Session Expired" });
 
-                IList<UserFeedInfoDTO> users = await _userService.SearchUsers(query, lastCreatedAt, lastId != null ? Guid.Parse(lastId) : (Guid?)null, pageSize, Guid.Parse(userIdStr));
+                IList<UserFeedInfoDTO> users = await _userService.SearchUsers(query, lastCreatedAt, lastId, pageSize, currentUserId);
                 return Ok(users);
             }
             catch (Exception ex)
             {
-                return BadRequest(ex);
+                return BadRequest(new { message = ex.Message });
             }
         }
 
-        [HttpPost("{id}/follow")]
-        public async Task<IActionResult> FollowUser([FromRoute] string id)
+        [HttpPost("{id:guid}/follow")]
+        public async Task<IActionResult> FollowUser([FromRoute] Guid id)
         {
             try
             {
-                string? userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (!TryGetCurrentUserId(out Guid currentUserId))
+                    return Unauthorized(new { message = "Session Expired" });
 
-                if (string.IsNullOrWhiteSpace(userIdStr))
-                    return BadRequest("Session Expired");
-
-                await _userService.FollowUser(userIdStr, id);
+                await _userService.FollowUser(currentUserId, id);
 
                 return Ok(new { message = "User followed successfully" });
             }
@@ -174,19 +169,34 @@ namespace Rediter.Api.Controllers
             }
         }
 
-        [HttpDelete("{id}/unfollow")]
-        public async Task<IActionResult> UnfollowUser([FromRoute] string id)
+        [HttpDelete("{id:guid}/unfollow")]
+        public async Task<IActionResult> UnfollowUser([FromRoute] Guid id)
         {
             try
             {
-                string? userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (!TryGetCurrentUserId(out Guid currentUserId))
+                    return Unauthorized(new { message = "Session Expired" });
 
-                if (string.IsNullOrWhiteSpace(userIdStr))
-                    return BadRequest("Session Expired");
-
-                await _userService.UnfollowUser(userIdStr, id);
+                await _userService.UnfollowUser(currentUserId.ToString(), id.ToString());
 
                 return Ok(new { message = "User unfollowed successfully" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("{id:guid}/block")]
+        public async Task<IActionResult> BlockUser([FromRoute] Guid id)
+        {
+            try
+            {
+                if (!TryGetCurrentUserId(out Guid currentUserId))
+                    return Unauthorized(new { message = "Session Expired" });
+
+                await _userService.BlockUser(currentUserId, id);
+                return Ok(new { message = "User blocked successfully" });
             }
             catch (Exception ex)
             {

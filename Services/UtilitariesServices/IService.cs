@@ -5,11 +5,11 @@
         Task<T?> GetByIdAsync(int id);
         Task<T?> GetByGuidAsync(Guid guid);
 
-        Task<bool> InsertAsync(T entity);
-        Task<bool> UpdateAsync(T entity);
+        void Insert(T entity);
+        void Update(T entity);
+        void Delete(T entity);
 
         Task<bool> DeleteByIdAsync(int id);
         Task<bool> DeleteByGuidAsync(Guid guid);
-        Task<bool> DeleteAsync(T entity);
     }
 }

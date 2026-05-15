@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Rediter.Api.Models;
 using Rediter.Api.Repositories;
 using Rediter.Api.Services.UtilitariesServices;
-using Microsoft.Extensions.Configuration;
+using System.Transactions;
 
 namespace Rediter.Api.Services
 {
@@ -113,7 +113,7 @@ namespace Rediter.Api.Services
 
             bool fileSavedToDisk = false;
 
-            using var transaction = await _pictureRepository.BeginTransaction();
+            using var scope = new TransactionScope(TransactionScopeOption.Required, TransactionScopeAsyncFlowOption.Enabled);
             try
             {
                 using (var stream = new FileStream(filePath, FileMode.Create))
@@ -131,8 +131,10 @@ namespace Rediter.Api.Services
                     Size = (int)file.Length
                 };
 
-                await _pictureRepository.Insert(picture);
-                await transaction.CommitAsync();
+                _pictureRepository.Insert(picture);
+
+                await SaveChangesAsync();
+                scope.Complete();
 
                 _logger.LogInformation("[PictureService] Imagem {FileName} salva no banco de dados e transação comitada com sucesso.", fileName);
 
@@ -141,8 +143,6 @@ namespace Rediter.Api.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[PictureService] Erro durante a criação da imagem {FileName}. Iniciando Rollback.", fileName);
-
-                await transaction.RollbackAsync();
                 _logger.LogDebug("[PictureService] Rollback do banco de dados concluído para a imagem {FileName}.", fileName);
 
                 if (fileSavedToDisk && File.Exists(filePath))
@@ -203,7 +203,7 @@ namespace Rediter.Api.Services
             }
 
             var folder = GetUploadsDirectory();
-            int deletedCount = 0;
+            int markedForDeletion = 0;
 
             foreach (var pic in unusedPictures)
             {
@@ -217,12 +217,10 @@ namespace Rediter.Api.Services
                         _logger.LogDebug("[PictureService] Arquivo físico deletado: {Path}", path);
                     }
                     else
-                    {
                         _logger.LogWarning("[PictureService] O arquivo físico da imagem {FileName} não foi encontrado durante a limpeza.", pic.FileName);
-                    }
 
-                    await _pictureRepository.Delete(pic);
-                    deletedCount++;
+                    _pictureRepository.Delete(pic);
+                    markedForDeletion++;
                 }
                 catch (Exception ex)
                 {
@@ -230,7 +228,10 @@ namespace Rediter.Api.Services
                 }
             }
 
-            _logger.LogInformation("[PictureService] Limpeza de imagens concluída. Total de imagens removidas: {DeletedCount}", deletedCount);
+            if (markedForDeletion > 0)
+                await SaveChangesAsync();
+
+            _logger.LogInformation("[PictureService] Limpeza de imagens concluída. Total de imagens removidas do banco: {DeletedCount}", markedForDeletion);
         }
 
         private string GetContentType(string? extension)
@@ -246,10 +247,8 @@ namespace Rediter.Api.Services
                     extension = "." + extension;
 
                 if (_contentTypeProvider.TryGetContentType($"file{extension}", out var contentType))
-                {
                     return contentType;
-                }
-
+                
                 return extension switch
                 {
                     ".jpg" or ".jpeg" => "image/jpeg",

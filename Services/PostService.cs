@@ -3,6 +3,7 @@ using Rediter.Api.Models;
 using Rediter.Api.Repositories;
 using Rediter.Api.Services.UtilitariesServices;
 using System.Diagnostics;
+using System.Transactions;
 
 namespace Rediter.Api.Services
 {
@@ -19,56 +20,63 @@ namespace Rediter.Api.Services
             _postUserLikeService = postUserLikeService;
         }
 
-        public async Task NewPost(NewPostDTO dto, string userUuid)
+        public async Task NewPost(NewPostDTO dto, Guid userUuid)
         {
-            try
+            using (var scope = new TransactionScope(TransactionScopeOption.Required, TransactionScopeAsyncFlowOption.Enabled))
             {
-                Post post = new Post();
-
-                post.UserId = Guid.Parse(userUuid);
-                post.CreatedAt =
-                post.UpdatedAt = DateTime.Now;
-                post.Content = dto.Text;
-                post.LocationName = dto.LocationName;
-                post.ParentPostId = null;
-
-                if (dto.ParentPostId != null)
+                try
                 {
-                    post.ParentPostId = new Guid(dto.ParentPostId);
-
-                    Post? parentPost = await _postrepository.GetByUuid(post.ParentPostId.Value);
-                   
-                    if (parentPost != null)
+                    Post post = new Post
                     {
-                        parentPost.CommentsCount++;
-                        await _postrepository.Update(parentPost);
-                    }
-                }
+                        UserId = userUuid,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        Content = dto.Text,
+                        LocationName = dto.LocationName,
+                        ParentPostId = null
+                    };
 
-                if (dto.Pictures != null && dto.Pictures.Count > 0)
-                {
-                    int order = 0;
-                    foreach (IFormFile picture in dto.Pictures)
+                    if (!string.IsNullOrEmpty(dto.ParentPostId))
                     {
-                        Picture pic = await _pictureService.CreatePicture(picture);
+                        post.ParentPostId = new Guid(dto.ParentPostId);
 
-                        PostImage pi = new PostImage
+                        Post? parentPost = await _postrepository.GetByUuid(post.ParentPostId.Value);
+
+                        if (parentPost != null)
                         {
-                            PictureId = pic.Id,
-                            DisplayOrder = order++,
-                            CreatedAt = DateTime.Now,
-                        };
-
-                        post.PostImages.Add(pi);
+                            parentPost.CommentsCount++;
+                            _postrepository.Update(parentPost); 
+                        }
                     }
-                }
-                await _postrepository.Insert(post);
 
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex);
-                throw new Exception(ex.Message);
+                    if (dto.Pictures != null && dto.Pictures.Count > 0)
+                    {
+                        int order = 0;
+                        foreach (IFormFile picture in dto.Pictures)
+                        {
+                            Picture pic = await _pictureService.CreatePicture(picture);
+
+                            PostImage pi = new PostImage
+                            {
+                                PictureId = pic.Id,
+                                DisplayOrder = order++,
+                                CreatedAt = DateTime.UtcNow,
+                            };
+
+                            post.PostImages.Add(pi);
+                        }
+                    }
+
+                     _postrepository.Insert(post);
+
+                    await SaveChangesAsync();
+                    scope.Complete();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(ex);
+                    throw new Exception("Erro ao criar o post: " + ex.Message);
+                }
             }
         }
 
@@ -89,57 +97,7 @@ namespace Rediter.Api.Services
 
         public async Task UpdatePost(UpdatePostDTO dto, string postId)
         {
-            try
-            {
-                Post? post = await _postrepository.GetByUuid(new Guid(postId));
-
-                if (post == null)
-                    throw new Exception("Post não encontrado");
-
-                post.Content = dto.Text;
-                post.LocationName = dto.LocationName;
-                post.UpdatedAt = DateTime.Now;
-
-                var retainedNames = dto.RetainedPictures ?? new List<string>();
-
-                var imagesToRemove = post.PostImages
-                    .Where(pi => pi.Picture != null && !retainedNames.Contains(pi.Picture.FileName))
-                    .ToList();
-
-                foreach (var piToRemove in imagesToRemove)
-                {
-                    post.PostImages.Remove(piToRemove);
-                }
-
-                if (dto.Pictures != null && dto.Pictures.Count > 0)
-                {
-                    int order = post.PostImages.Any() ? post.PostImages.Max(pi => pi.DisplayOrder) + 1 : 0;
-
-                    foreach (IFormFile picture in dto.Pictures)
-                    {
-                        Picture pic = await _pictureService.CreatePicture(picture);
-                        PostImage pi = new PostImage
-                        {
-                            PictureId = pic.Id,
-                            DisplayOrder = order++,
-                            CreatedAt = DateTime.Now,
-                        };
-
-                        post.PostImages.Add(pi);
-                    }
-                }
-
-                await _postrepository.Update(post);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception(ex.Message);
-            }
-        }
-
-        public async Task DeletePost(string postId)
-        {
-            using (var transaction = await _postrepository.BeginTransaction())
+            using (var scope = new TransactionScope(TransactionScopeOption.Required, TransactionScopeAsyncFlowOption.Enabled))
             {
                 try
                 {
@@ -148,33 +106,87 @@ namespace Rediter.Api.Services
                     if (post == null)
                         throw new Exception("Post não encontrado");
 
-                    await _postrepository.Delete(post);
-                    await transaction.CommitAsync();
+                    post.Content = dto.Text;
+                    post.LocationName = dto.LocationName;
+                    post.UpdatedAt = DateTime.UtcNow;
+
+                    var retainedNames = dto.RetainedPictures ?? new List<string>();
+
+                    var imagesToRemove = post.PostImages
+                        .Where(pi => pi.Picture != null && !retainedNames.Contains(pi.Picture.FileName))
+                        .ToList();
+
+                    foreach (var piToRemove in imagesToRemove)
+                    {
+                        post.PostImages.Remove(piToRemove);
+                    }
+
+                    if (dto.Pictures != null && dto.Pictures.Count > 0)
+                    {
+                        int order = post.PostImages.Any() ? post.PostImages.Max(pi => pi.DisplayOrder) + 1 : 0;
+
+                        foreach (IFormFile picture in dto.Pictures)
+                        {
+                            Picture pic = await _pictureService.CreatePicture(picture);
+                            PostImage pi = new PostImage
+                            {
+                                PictureId = pic.Id,
+                                DisplayOrder = order++,
+                                CreatedAt = DateTime.UtcNow,
+                            };
+
+                            post.PostImages.Add(pi);
+                        }
+                    }
+
+                    _postrepository.Update(post);
+
+                    await SaveChangesAsync();
+                    scope.Complete();
                 }
                 catch (Exception ex)
                 {
-                    await transaction.RollbackAsync();
+                    throw new Exception("Erro ao atualizar o post: " + ex.Message);
+                }
+            }
+        }
+
+        public async Task DeletePost(Guid postId)
+        {
+            using (var scope = new TransactionScope(TransactionScopeOption.Required, TransactionScopeAsyncFlowOption.Enabled))
+            {
+                try
+                {
+                    Post? post = await _postrepository.GetByUuid(postId);
+
+                    if (post == null)
+                        throw new Exception("Post não encontrado");
+
+                    _postrepository.Delete(post);
+
+                    await SaveChangesAsync();
+                    scope.Complete();
+                }
+                catch (Exception ex)
+                {
                     throw new Exception("Ocorreu um erro ao deletar o post: " + ex.Message);
                 }
             }
         }
 
-        public async Task<IList<string>> GetAllMidiaNames(string userId)
+        public async Task<IList<string>> GetAllMidiaNames(Guid userId)
         {
-            return await _postrepository.GetAllMidiaNames(new Guid(userId));
+            return await _postrepository.GetAllMidiaNames(userId);
         }
 
-        public async Task LikePost(string postId, string userId)
+        public async Task LikePost(Guid postId, Guid userId)
         {
-            Guid parsedPostId = Guid.Parse(postId);
-            Guid parsedUserId = Guid.Parse(userId);
-
-            Post? post = await _postrepository.GetByUuid(parsedPostId);
+            Post? post = await _postrepository.GetByUuid(postId);
 
             if (post == null)
                 throw new Exception("Post não encontrado");
 
-            bool alreadyLiked = post.Likes.Any(l => l.UserId == parsedUserId);
+            bool alreadyLiked = post.Likes.Any(l => l.UserId == userId);
 
             if (alreadyLiked)
                 return;
@@ -182,52 +194,51 @@ namespace Rediter.Api.Services
             UserPostLike like = new UserPostLike
             {
                 PostId = post.Id,
-                UserId = parsedUserId,
+                UserId = userId,
                 CreatedAt = DateTime.UtcNow
             };
 
-            await _postUserLikeService.InsertAsync(like);
-            await _postrepository.IncrementLikesCount(post.Id);
+            post.LikesCount++;
+
+            _postUserLikeService.Insert(like);
+            _postrepository.Update(post);
+
+            await SaveChangesAsync();
         }
 
-        public async Task UnlikePost(string postId, string userId)
+        public async Task UnlikePost(Guid postId, Guid userId)
         {
             try
             {
-                Post? post = await _postrepository.GetByUuid(new Guid(postId));
+                Post? post = await _postrepository.GetByUuid(postId);
                 if (post == null)
                     throw new Exception("Post não encontrado");
 
-                Guid parsedUserId = Guid.Parse(userId);
-                var like = post.Likes.FirstOrDefault(l => l.UserId == parsedUserId);
+                var like = post.Likes.FirstOrDefault(l => l.UserId == userId);
 
                 if (like == null)
                     return;
 
                 post.Likes.Remove(like);
                 post.LikesCount--;
-                await _postrepository.Update(post);
+
+                _postrepository.Update(post);
+                await SaveChangesAsync();
             }
             catch (Exception ex)
             {
                 throw new Exception(ex.Message);
             }
-        }
-        public async Task<PostFeedDTO?> GetPostById(string postId, string userUuid)
-        {
-            return await _postrepository.GetPostById(new Guid(postId), new Guid(userUuid));
         }
 
-        public async Task AddComment(string postId, NewPostDTO dto, string userUuid)
+        public async Task<PostFeedDTO?> GetPostById(Guid postId, Guid userUuid)
         {
-            try
-            {
-                await NewPost(dto, userUuid);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception(ex.Message);
-            }
+            return await _postrepository.GetPostById(postId, userUuid);
+        }
+
+        public async Task AddComment(Guid postId, NewPostDTO dto, Guid userUuid)
+        {
+            await NewPost(dto, userUuid);
         }
     }
 }

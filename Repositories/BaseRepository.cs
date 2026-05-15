@@ -1,5 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage; // Necessário para IDbContextTransaction
+﻿using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Rediter.Api.Data;
 using Rediter.Api.Models;
 
@@ -16,92 +17,50 @@ namespace Rediter.Api.Repositories
             _dbSet = _context.Set<T>();
         }
 
-        #region Métodos de Transação (Escopo)
-
-        /// <summary>
-        /// Inicia uma nova transação assíncrona.
-        /// </summary>
-        public async Task<IDbContextTransaction> BeginTransaction()
-        {
-            return await _context.Database.BeginTransactionAsync();
-        }
-
-        /// <summary>
-        /// Confirma as alterações no banco de dados.
-        /// </summary>
-        public async Task CommitTransaction(IDbContextTransaction transaction)
-        {
-            if (transaction == null) throw new ArgumentNullException(nameof(transaction));
-            await transaction.CommitAsync();
-        }
-
-        /// <summary>
-        /// Desfaz as alterações caso algo dê errado.
-        /// </summary>
-        public async Task RollbackTransaction(IDbContextTransaction transaction)
-        {
-            if (transaction == null) throw new ArgumentNullException(nameof(transaction));
-            await transaction.RollbackAsync();
-        }
-
-        #endregion
-
         /// <summary>
         /// Insere no banco a classe do repositorio 
         /// </summary>
-        /// <param name="entity"></param>
-        /// <returns></returns>
-        public virtual async Task<bool> Insert(T entity)
+        public virtual void Insert(T entity)
         {
-            await _dbSet.AddAsync(entity);
-            var rows = await _context.SaveChangesAsync();
-            return rows > 0;
+            _dbSet.Add(entity);
         }
 
         /// <summary>
         /// Atualiza a classe do repositorio
         /// </summary>
-        /// <param name="entity"></param>
-        /// <returns></returns>
-        public virtual async Task<bool> Update(T entity)
+        public virtual void Update(T entity)
         {
             _dbSet.Update(entity);
-
-            var rows = await _context.SaveChangesAsync();
-
-            return rows > 0;
         }
+
         /// <summary>
         /// Deleta do banco a classe
         /// </summary>
-        /// <param name="entity"></param>
-        /// <returns></returns>
-        public virtual async Task<bool> Delete(T entity)
+        public virtual void Delete(T entity)
         {
             _dbSet.Remove(entity);
-
-            var rows = await _context.SaveChangesAsync();
-
-            return rows > 0;
         }
 
         /// <summary>
-        /// Procura classe por uuid
+        /// Procura classe por uuid (com opção de AsNoTracking para performance)
         /// </summary>
-        /// <param name="id"></param>
-        /// <returns></returns>
-        public virtual async Task<T?> GetByUuid(Guid uuid)
+        public virtual async Task<T?> GetByUuid(Guid uuid, bool trackChanges = true)
         {
-            return await _dbSet.FirstOrDefaultAsync(e => EF.Property<Guid>(e, "Id") == uuid);
+            var query = trackChanges ? _dbSet : _dbSet.AsNoTracking();
+            return await query.FirstOrDefaultAsync(e => e.Id == uuid);
         }
+
         /// <summary>
-        /// procura classe por id inteiro
+        /// procura classe por id inteiro (com opção de AsNoTracking)
         /// </summary>
-        /// <param name="id"></param>
-        /// <returns></returns>
-        public virtual async Task<T?> GetById(int id)
+        public virtual async Task<T?> GetById(int id, bool trackChanges = true)
         {
-            return await _dbSet.FindAsync(id);
+            if (trackChanges)
+            {
+                return await _dbSet.FindAsync(id);
+            }
+
+            return await _dbSet.AsNoTracking().FirstOrDefaultAsync(e => EF.Property<int>(e, "Id") == id);
         }
 
         protected IQueryable<T> ApplyKeysetPagination(IQueryable<T> query, DateTime? lastCreatedAt, Guid? lastId)
@@ -114,6 +73,16 @@ namespace Rediter.Api.Repositories
                 );
             }
             return query;
+        }
+
+        public async Task SaveChanges()
+        {
+            int rows = await _context.SaveChangesAsync();
+
+            if (rows <= 0)
+            {
+                throw new Exception("No changes were saved to the database.");
+            }
         }
     }
 }

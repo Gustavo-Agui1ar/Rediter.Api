@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Oracle.EntityFrameworkCore.Metadata;
 using Rediter.Api.Data;
@@ -11,9 +12,11 @@ using Rediter.Api.Data;
 namespace Rediter.Api.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20260514185450_AddBlockUsers")]
+    partial class AddBlockUsers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -77,16 +80,9 @@ namespace Rediter.Api.Migrations
                         .HasColumnName("COMMENTSCOUNT");
 
                     b.Property<string>("Content")
-                        .HasMaxLength(500)
-                        .HasColumnType("NVARCHAR2(500)")
+                        .HasMaxLength(2000)
+                        .HasColumnType("NVARCHAR2(2000)")
                         .HasColumnName("CONTENT");
-
-                    b.Property<string>("ContentLower")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasMaxLength(500)
-                        .HasColumnType("NVARCHAR2(500)")
-                        .HasColumnName("CONTENTLOWER")
-                        .HasComputedColumnSql("LOWER(\"CONTENT\")");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -119,9 +115,6 @@ namespace Rediter.Api.Migrations
                         .HasColumnName("USERID");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ContentLower")
-                        .HasDatabaseName("idx_post_content_lower");
 
                     b.HasIndex("ParentPostId");
 
@@ -202,12 +195,6 @@ namespace Rediter.Api.Migrations
                         .HasColumnType("NVARCHAR2(150)")
                         .HasColumnName("NAME");
 
-                    b.Property<string>("NameLower")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("NVARCHAR2(450)")
-                        .HasColumnName("NAMELOWER")
-                        .HasComputedColumnSql("LOWER(\"NAME\")");
-
                     b.Property<string>("Password")
                         .HasColumnType("NVARCHAR2(2000)")
                         .HasColumnName("PASSWORD");
@@ -233,9 +220,6 @@ namespace Rediter.Api.Migrations
                         .HasColumnName("VERIFICATION_CODE");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("NameLower")
-                        .HasDatabaseName("idx_user_name_lower");
 
                     b.HasIndex("ProfileCoverId");
 

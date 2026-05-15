@@ -46,15 +46,15 @@ namespace Rediter.Api.Repositories
         }
 
         public async Task<IList<PostFeedDTO>> SearchPosts(
-             string searchTerm,
-             DateTime? lastCreatedAt,
-             Guid? lastId, 
-             int pageSize,
-             bool onlyWithMedia = false,
-             Guid? parentPostID = null, 
-             bool fetchChildPosts = false,
-             CancellationToken cancellationToken = default,
-             Guid? currentUserId = null) 
+           string searchTerm,
+           DateTime? lastCreatedAt,
+           Guid? lastId,
+           int pageSize,
+           bool onlyWithMedia = false,
+           Guid? parentPostID = null,
+           bool fetchChildPosts = false,
+           CancellationToken cancellationToken = default,
+           Guid? currentUserId = null)
         {
             ValidatePaginationState(lastCreatedAt, lastId);
 
@@ -62,9 +62,10 @@ namespace Rediter.Api.Repositories
 
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
+                var termLower = searchTerm.ToLower();
                 query = query.Where(p =>
-                    (p.User != null && p.User.Name.Contains(searchTerm)) ||
-                    (p.Content != null && p.Content.Contains(searchTerm))
+                    (p.User != null && EF.Property<string>(p.User, "NameLower").Contains(termLower)) ||
+                    (p.Content != null && EF.Property<string>(p, "ContentLower").Contains(termLower))
                 );
             }
 
@@ -77,6 +78,15 @@ namespace Rediter.Api.Repositories
                 query = query.Where(p => p.PostImages.Any(pi => pi.Picture != null));
 
             Guid safeUserId = currentUserId ?? Guid.Empty;
+
+            if (safeUserId != Guid.Empty)
+            {
+                query = query.Where(p =>
+                    p.User != null &&
+                    !p.User.BlockedBy.Any(b => b.BlockerId == safeUserId) &&
+                    !p.User.BlockedUsers.Any(b => b.BlockedId == safeUserId)
+                );
+            }
 
             return await ApplyKeysetPagination(query, lastCreatedAt, lastId)
                 .OrderByDescending(p => p.CreatedAt)
@@ -121,7 +131,7 @@ namespace Rediter.Api.Repositories
             {
                 Id = p.Id.ToString(),
                 UserName = p.User!.Name,
-                ImageProfileUrl = p.User.ProfilePicture != null ? p.User.ProfilePicture.FileName : null,
+                ProfileImageName = p.User.ProfilePicture != null ? p.User.ProfilePicture.FileName : null,
                 Text = p.Content,
                 Location = p.LocationName,
                 ImageUrls = p.PostImages
@@ -133,7 +143,7 @@ namespace Rediter.Api.Repositories
                 LikesCount = p.LikesCount,
                 CommentsCount = p.CommentsCount, 
                 LikedByCurrentUser = currentUserId != Guid.Empty && p.Likes.Any(l => l.UserId == currentUserId),
-                PostUserId = p.UserId.ToString(),
+                PostUserID = p.UserId.ToString(),
                 IsFollowing = currentUserId != Guid.Empty && p.User.Followers.Any(f => f.FollowerId == currentUserId),
                 OwnPost = p.UserId == currentUserId
             };

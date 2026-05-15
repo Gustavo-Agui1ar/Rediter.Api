@@ -1,9 +1,7 @@
 ﻿namespace Rediter.Api.DTOs
 {
-    public class TokenRequestDTO
-    {
-        public string AccessToken { get; set; } = string.Empty;
-        public string RefreshToken { get; set; } = string.Empty;
-    }
-
+    public record TokenRequestDTO(
+        string AccessToken = "",
+        string RefreshToken = ""
+    );
 }

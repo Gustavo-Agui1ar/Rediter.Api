@@ -40,7 +40,7 @@ namespace Rediter.Api.Repositories
             DateTime? lastCreatedAt,
             Guid? lastId,
             int pageSize,
-            Guid currentUserId, 
+            Guid currentUserId,
             CancellationToken cancellationToken = default)
         {
             ValidatePaginationState(lastCreatedAt, lastId);
@@ -50,6 +50,14 @@ namespace Rediter.Api.Repositories
             if (!string.IsNullOrWhiteSpace(query))
             {
                 usersQuery = usersQuery.Where(u => u.Name.Contains(query));
+            }
+
+            if (currentUserId != Guid.Empty)
+            {
+                usersQuery = usersQuery.Where(u =>
+                    !u.BlockedBy.Any(b => b.BlockerId == currentUserId) &&
+                    !u.BlockedUsers.Any(b => b.BlockedId == currentUserId)
+                 );
             }
 
             return await ApplyKeysetPagination(usersQuery, lastCreatedAt, lastId)
@@ -85,7 +93,7 @@ namespace Rediter.Api.Repositories
                 UserName = u.Name,
                 ProfileImageName = u.ProfilePicture != null ? u.ProfilePicture.FileName : null,
                 CreatedAt = u.CreatedAt,
-                Description = u.Description,
+                Description = u.Description,    
                 OwnProfile = u.Id == currentUserId,
                 IsFollowing = currentUserId != Guid.Empty && u.Followers.Any(f => f.FollowerId == currentUserId)
             };

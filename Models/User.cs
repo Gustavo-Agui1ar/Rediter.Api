@@ -23,5 +23,8 @@ public class User : IEntity
     public virtual ICollection<UserFollower> Followers { get; set; } = new List<UserFollower>();
     public virtual ICollection<UserFollower> Following { get; set; } = new List<UserFollower>();
 
+    public virtual ICollection<UserBlock> BlockedUsers { get; set; } = new List<UserBlock>();
+    public virtual ICollection<UserBlock> BlockedBy { get; set; } = new List<UserBlock>();
+
     public User() { }
 }

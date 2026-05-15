@@ -5,6 +5,7 @@ using Rediter.Api.DTOs;
 using Rediter.Api.Models;
 using Rediter.Api.Repositories;
 using Rediter.Api.Services.UtilitariesServices;
+using System.Transactions;
 
 namespace Rediter.Api.Services
 {
@@ -14,21 +15,24 @@ namespace Rediter.Api.Services
         private readonly PictureService _pictureService;
         private readonly EmailService _emailService;
         private readonly UserFollowerService _userFollowerService;
+        private readonly UserBlockService _userBlockService;
 
         public UserService(UserRepository userRepository,
             EmailService emailService,
             PictureService pictureService,
-            UserFollowerService userFollowerService) : base(userRepository)
+            UserFollowerService userFollowerService,
+            UserBlockService userBlockService) : base(userRepository)
         {
             _UserRepository = userRepository;
             _emailService = emailService;
             _pictureService = pictureService;
             _userFollowerService = userFollowerService;
+            _userBlockService = userBlockService;
         }
 
         public async Task<string> CreateUser(UserDTO dto)
         {
-            using (var transaction = await _UserRepository.BeginTransaction())
+            using (var scope = new TransactionScope(TransactionScopeOption.Required, TransactionScopeAsyncFlowOption.Enabled))
             {
                 try
                 {
@@ -45,13 +49,15 @@ namespace Rediter.Api.Services
                     };
 
                     await _emailService.SendVerificationCodeAsync(user.Email, user.Name, user.VerificationCode);
-                    await _UserRepository.Insert(user);
-                    await transaction.CommitAsync();
+
+                    _UserRepository.Insert(user);
+
+                    await SaveChangesAsync();
+                    scope.Complete();
                     return user.Id.ToString();
                 }
                 catch (Exception ex)
                 {
-                    await transaction.RollbackAsync();
                     throw new Exception("Ocorreu um erro ao criar o usuário: " + ex.Message);
                 }
             }
@@ -86,39 +92,48 @@ namespace Rediter.Api.Services
                 ImageName = targetUser.ProfilePicture?.FileName,
                 ImageCover = targetUser.ProfileCover?.FileName,
                 Description = targetUser.Description,
-                IsFollowing = isFollowing 
+                IsFollowing = isFollowing
             };
         }
 
         public async Task UpdateUserByUserDTO(UserUpdateDTO dto, User user)
         {
-            if (user == null)
-                throw new Exception("User not found.");
-
-            if (!string.IsNullOrWhiteSpace(dto.Name))
-                user.Name = dto.Name;
-
-            if (!string.IsNullOrWhiteSpace(dto.Email))
-                user.Email = dto.Email;
-
-            if (!string.IsNullOrWhiteSpace(dto.Password))
-                user.Password = HashService.HashPassword(dto.Password);
-
-            if (!string.Equals(user.Description, dto.Description))
-                user.Description = dto.Description;
-
-            if (dto.File != null)
+            try
             {
-                user.ProfilePicture = await _pictureService.CreatePicture(dto.File);
-                user.ProfilePictureId = user.ProfilePicture.Id;
-            }
+                if (user == null)
+                    throw new Exception("User not found.");
 
-            if (dto.Cover != null)
-            {
-                user.ProfileCover = await _pictureService.CreatePicture(dto.Cover);
-                user.ProfileCoverId = user.ProfileCover.Id;
+                if (!string.IsNullOrWhiteSpace(dto.Name))
+                    user.Name = dto.Name;
+
+                if (!string.IsNullOrWhiteSpace(dto.Email))
+                    user.Email = dto.Email;
+
+                if (!string.IsNullOrWhiteSpace(dto.Password))
+                    user.Password = HashService.HashPassword(dto.Password);
+
+                if (!string.Equals(user.Description, dto.Description))
+                    user.Description = dto.Description;
+
+                if (dto.File != null)
+                {
+                    user.ProfilePicture = await _pictureService.CreatePicture(dto.File);
+                    user.ProfilePictureId = user.ProfilePicture.Id;
+                }
+
+                if (dto.Cover != null)
+                {
+                    user.ProfileCover = await _pictureService.CreatePicture(dto.Cover);
+                    user.ProfileCoverId = user.ProfileCover.Id;
+                }
+
+                _UserRepository.Update(user);
+                await SaveChangesAsync();
             }
-            await _UserRepository.Update(user);
+            catch (Exception ex)
+            {
+                throw new Exception("Error updating user: " + ex.Message);
+            }
         }
 
         public async Task<bool> AddPictureFromGoogle(User user, string pictureUrl)
@@ -130,7 +145,10 @@ namespace Rediter.Api.Services
 
                 user.ProfilePicture = await _pictureService.CreateImageFromGoogle(pictureUrl);
                 user.ProfilePictureId = user.ProfilePicture!.Id;
-                await _UserRepository.Update(user);
+
+                _UserRepository.Update(user);
+                await SaveChangesAsync();
+
                 return true;
             }
             catch (Exception ex)
@@ -144,12 +162,12 @@ namespace Rediter.Api.Services
             return await _UserRepository.SearchUsers(query, lastCreatedAt, lastId, pageSize, userId);
         }
 
-        public async Task FollowUser(string followerId, string followeeId)
+        public async Task FollowUser(Guid followerId, Guid followeeId)
         {
             try
             {
-                User? follower = await _UserRepository.GetByUuid(new Guid(followerId));
-                User? followee = await _UserRepository.GetByUuid(new Guid(followeeId));
+                User? follower = await _UserRepository.GetByUuid(followerId);
+                User? followee = await _UserRepository.GetByUuid(followeeId);
 
                 if (follower == null || followee == null)
                     throw new Exception("Follower or followee not found.");
@@ -166,9 +184,11 @@ namespace Rediter.Api.Services
                 follower.Following.Add(follow);
                 followee.Followers.Add(follow);
 
-                await _userFollowerService.InsertAsync(follow);
-                await _UserRepository.Update(follower);
-                await _UserRepository.Update(followee);
+                _userFollowerService.Insert(follow);
+                _UserRepository.Update(follower);
+                _UserRepository.Update(followee);
+
+                await SaveChangesAsync();
             }
             catch (Exception ex)
             {
@@ -193,13 +213,48 @@ namespace Rediter.Api.Services
 
                 follower.Following.Remove(follow);
                 followee.Followers.Remove(follow);
-                await _userFollowerService.DeleteAsync(follow);
-                await _UserRepository.Update(follower);
-                await _UserRepository.Update(followee);
+
+                _userFollowerService.Delete(follow);
+                _UserRepository.Update(follower);
+                _UserRepository.Update(followee);
+
+                await SaveChangesAsync();
             }
             catch (Exception ex)
             {
                 throw new Exception("Error unfollowing user: " + ex.Message);
+            }
+        }
+
+        public async Task BlockUser(Guid user, Guid targetBlock)
+        {
+            try
+            {
+                User? blocker = await _UserRepository.GetByUuid(user);
+                User? blocked = await _UserRepository.GetByUuid(targetBlock);
+                if (blocker == null || blocked == null)
+                    throw new Exception("Blocker or blocked user not found.");
+                if (blocker.BlockedUsers.Any(b => b.BlockedId == blocked.Id))
+                    throw new Exception("Already blocking this user.");
+
+                UserBlock block = new UserBlock
+                {
+                    BlockerId = blocker.Id,
+                    BlockedId = blocked.Id
+                };
+
+                blocker.BlockedUsers.Add(block);
+                blocked.BlockedBy.Add(block);
+
+                _userBlockService.Insert(block);
+                _UserRepository.Update(blocker);
+                _UserRepository.Update(blocked);
+
+                await SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error blocking user: " + ex.Message);
             }
         }
     }

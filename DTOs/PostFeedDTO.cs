@@ -1,22 +1,20 @@
-﻿using Org.BouncyCastle.Bcpg.OpenPgp;
-
-namespace Rediter.Api.DTOs
+﻿namespace Rediter.Api.DTOs
 {
-    public class PostFeedDTO
+    public record PostFeedDTO
     {
-        public string Id { get; set; } = null!;
-        public string? Text { get; set; }
-        public string UserName { get; set; } = null!;
-        public string? ImageProfileUrl { get; set; }
-        public IList<string> ImageUrls { get; set; } = new List<string>();
-        public string? Location { get; set; }
-        public bool Edited { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public int LikesCount { get; set; }
-        public int CommentsCount { get; set; }
-        public bool LikedByCurrentUser { get; set; }
-        public string PostUserId { get; set; } = null!;
-        public bool IsFollowing { get; set; }
-        public bool OwnPost { get; set; }
+        public string Id { get; init; } = string.Empty;
+        public string UserName { get; init; } = string.Empty;
+        public string? ProfileImageName { get; init; }
+        public string? Text { get; init; }
+        public string? Location { get; init; }
+        public IList<string> ImageUrls { get; init; } = new List<string>();
+        public bool Edited { get; init; }
+        public DateTime CreatedAt { get; init; }
+        public int LikesCount { get; init; }
+        public int CommentsCount { get; init; }
+        public bool LikedByCurrentUser { get; init; }
+        public string PostUserID { get; init; } = string.Empty;
+        public bool IsFollowing { get; init; }
+        public bool OwnPost { get; init; }
     }
 }

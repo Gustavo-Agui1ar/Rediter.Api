@@ -22,14 +22,14 @@ namespace Rediter.Api.Services.UtilitariesServices
             return await _repository.GetByUuid(guid);
         }
 
-        public virtual async Task<bool> InsertAsync(T entity)
+        public virtual void Insert(T entity)
         {
-            return await _repository.Insert(entity);
+            _repository.Insert(entity);
         }
 
-        public virtual async Task<bool> UpdateAsync(T entity)
+        public virtual void Update(T entity)
         {
-            return await _repository.Update(entity);
+            _repository.Update(entity);
         }
 
         public virtual async Task<bool> DeleteByIdAsync(int id)
@@ -37,7 +37,8 @@ namespace Rediter.Api.Services.UtilitariesServices
             var entity = await GetByIdAsync(id);
             if (entity == null) return false;
 
-            return await _repository.Delete(entity);
+            _repository.Delete(entity);
+            return true;
         }
 
         public virtual async Task<bool> DeleteByGuidAsync(Guid guid)
@@ -45,12 +46,18 @@ namespace Rediter.Api.Services.UtilitariesServices
             var entity = await GetByGuidAsync(guid);
             if (entity == null) return false;
 
-            return await _repository.Delete(entity);
+            _repository.Delete(entity);
+            return true;
         }
 
-        public virtual async Task<bool> DeleteAsync(T entity)
+        public virtual void Delete(T entity)
         {
-            return await _repository.Delete(entity);
+            _repository.Delete(entity);
+        }
+
+        public virtual async Task SaveChangesAsync()
+        {
+            await _repository.SaveChanges();
         }
     }
 }

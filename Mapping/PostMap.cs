@@ -13,7 +13,7 @@ namespace Rediter.Api.Data.Mappings
             builder.HasKey(p => p.Id);
 
             builder.Property(p => p.Content)
-                .HasMaxLength(2000); 
+                .HasMaxLength(500); 
 
             builder.Property(p => p.LocationName)
                 .HasMaxLength(255);
@@ -44,6 +44,13 @@ namespace Rediter.Api.Data.Mappings
                 .WithOne()
                 .HasForeignKey("PostId")
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Property<string>("ContentLower")
+              .HasMaxLength(500)
+              .HasComputedColumnSql("LOWER(\"CONTENT\")");
+
+            builder.HasIndex("ContentLower")
+                   .HasDatabaseName("idx_post_content_lower");
         }
     }
 }
