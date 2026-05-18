@@ -23,6 +23,9 @@ namespace Rediter.Api.Mappings
             builder.Property(x => x.RefreshTokenExpiration).HasColumnName("REFRESH_TOKEN_EXPIRATION");
             builder.Property(x => x.Description).HasColumnName("DESCRIPTION").HasMaxLength(500);
 
+            builder.Property(x => x.FollowersCount).HasColumnName("FOLLOWERS_COUNT").HasDefaultValue(0);
+            builder.Property(x => x.FollowingCount).HasColumnName("FOLLOWING_COUNT").HasDefaultValue(0);
+
             builder.Property(x => x.ProfilePictureId).HasColumnName("PROFILE_PICTURE_ID");
             builder.HasOne(x => x.ProfilePicture)
                 .WithMany()
@@ -52,7 +55,7 @@ namespace Rediter.Api.Mappings
                 .HasForeignKey(x => x.BlockedId);
 
             builder.Property<string>("NameLower")
-                   .HasComputedColumnSql("LOWER(\"NAME\")"); 
+                   .HasComputedColumnSql("LOWER(\"NAME\")");
 
             builder.HasIndex("NameLower")
                    .HasDatabaseName("idx_user_name_lower");

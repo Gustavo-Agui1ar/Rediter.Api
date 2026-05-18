@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Rediter.Api.DTOs;
 using Rediter.Api.Models;
 using Rediter.Api.Services;
+using System.Diagnostics;
 using System.Security.Claims;
 
 namespace Rediter.Api.Controllers
@@ -50,12 +51,7 @@ namespace Rediter.Api.Controllers
                 if (!TryGetCurrentUserId(out Guid userId))
                     return Unauthorized(new { message = "Session Expired or Invalid User ID." });
 
-                User? user = await _userService.GetByGuidAsync(userId);
-
-                if (user == null)
-                    return NotFound(new { message = "User not found in DB" });
-
-                UserDTO? userDto = await _userService.GetUserDto(user, userId);
+                UserDTO? userDto = await _userService.GetUserProfileAsync(userId, userId);
 
                 return Ok(userDto);
             }
@@ -74,12 +70,7 @@ namespace Rediter.Api.Controllers
                 if (!TryGetCurrentUserId(out Guid currentUserId))
                     return Unauthorized(new { message = "Session Expired" });
 
-                User? user = await _userService.GetByGuidAsync(id);
-
-                if (user == null)
-                    return NotFound(new { message = "User not found" });
-
-                UserDTO dto = await _userService.GetUserDto(user, currentUserId);
+                UserDTO dto = await _userService.GetUserProfileAsync(id, currentUserId);
 
                 return Ok(dto);
             }
@@ -177,7 +168,7 @@ namespace Rediter.Api.Controllers
                 if (!TryGetCurrentUserId(out Guid currentUserId))
                     return Unauthorized(new { message = "Session Expired" });
 
-                await _userService.UnfollowUser(currentUserId.ToString(), id.ToString());
+                await _userService.UnfollowUser(currentUserId, id);
 
                 return Ok(new { message = "User unfollowed successfully" });
             }
@@ -197,6 +188,40 @@ namespace Rediter.Api.Controllers
 
                 await _userService.BlockUser(currentUserId, id);
                 return Ok(new { message = "User blocked successfully" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpDelete("{id:guid}/unblock")]
+        public async Task<IActionResult> UnblockUser([FromRoute] Guid id)
+        {
+            try
+            {
+                if (!TryGetCurrentUserId(out Guid currentUserId))
+                    return Unauthorized(new { message = "Session Expired" });
+                await _userService.UnblockUser(currentUserId, id);
+                return Ok(new { message = "User unblocked successfully" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpGet("me/blocked")]
+        public async Task<IActionResult> GetBlockedUsers([FromQuery] DateTime? lastCreatedAt, [FromQuery] Guid? lastId, [FromQuery] int pageSize)
+        {
+            try
+            {
+
+                if (!TryGetCurrentUserId(out Guid currentUserId))
+                    return Unauthorized(new { message = "Session Expired" });
+
+                var blockedUsers = await _userService.GetBlockedUsers(lastCreatedAt, lastId, pageSize, currentUserId);
+                return Ok(blockedUsers);
             }
             catch (Exception ex)
             {

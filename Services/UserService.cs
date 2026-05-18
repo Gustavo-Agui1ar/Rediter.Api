@@ -16,18 +16,21 @@ namespace Rediter.Api.Services
         private readonly EmailService _emailService;
         private readonly UserFollowerService _userFollowerService;
         private readonly UserBlockService _userBlockService;
+        private readonly PostService _postService;
 
         public UserService(UserRepository userRepository,
             EmailService emailService,
             PictureService pictureService,
             UserFollowerService userFollowerService,
-            UserBlockService userBlockService) : base(userRepository)
+            UserBlockService userBlockService,
+            PostService postService) : base(userRepository)
         {
             _UserRepository = userRepository;
             _emailService = emailService;
             _pictureService = pictureService;
             _userFollowerService = userFollowerService;
             _userBlockService = userBlockService;
+            _postService = postService; 
         }
 
         public async Task<string> CreateUser(UserDTO dto)
@@ -78,22 +81,9 @@ namespace Rediter.Api.Services
             return await _UserRepository.GetUserByRefreshAsync(refreshToken);
         }
 
-        public async Task<UserDTO> GetUserDto(User targetUser, Guid currentUserId)
+        public async Task<UserDTO> GetUserProfileAsync(Guid targetUserId, Guid currentUserId)
         {
-            if (targetUser == null)
-                throw new Exception("User not found.");
-
-            bool isFollowing = await _UserRepository.IsFollowingAsync(currentUserId, targetUser.Id);
-
-            return new UserDTO
-            {
-                Name = targetUser.Name,
-                Email = targetUser.Email,
-                ImageName = targetUser.ProfilePicture?.FileName,
-                ImageCover = targetUser.ProfileCover?.FileName,
-                Description = targetUser.Description,
-                IsFollowing = isFollowing
-            };
+            return await _UserRepository.GetUserProfileAsync(targetUserId, currentUserId);
         }
 
         public async Task UpdateUserByUserDTO(UserUpdateDTO dto, User user)
@@ -166,14 +156,15 @@ namespace Rediter.Api.Services
         {
             try
             {
+                bool alreadyFollowing = await _UserRepository.IsFollowingAsync(followerId, followeeId);
+                if (alreadyFollowing)
+                    throw new Exception("Already following this user.");
+
                 User? follower = await _UserRepository.GetByUuid(followerId);
                 User? followee = await _UserRepository.GetByUuid(followeeId);
 
                 if (follower == null || followee == null)
                     throw new Exception("Follower or followee not found.");
-
-                if (follower.Following.Any(f => f.FollowingId == followee.Id))
-                    throw new Exception("Already following this user.");
 
                 UserFollower follow = new UserFollower
                 {
@@ -181,8 +172,8 @@ namespace Rediter.Api.Services
                     FollowingId = followee.Id
                 };
 
-                follower.Following.Add(follow);
-                followee.Followers.Add(follow);
+                follower.FollowingCount++;
+                followee.FollowersCount++;
 
                 _userFollowerService.Insert(follow);
                 _UserRepository.Update(follower);
@@ -196,27 +187,25 @@ namespace Rediter.Api.Services
             }
         }
 
-        public async Task UnfollowUser(string followerId, string followeeId)
+        public async Task UnfollowUser(Guid followerId, Guid followeeId)
         {
             try
             {
-                User? follower = await _UserRepository.GetByUuid(new Guid(followerId));
-                User? followee = await _UserRepository.GetByUuid(new Guid(followeeId));
-
-                if (follower == null || followee == null)
-                    throw new Exception("Follower or followee not found.");
-
-                UserFollower? follow = follower.Following.FirstOrDefault(f => f.FollowingId == followee.Id);
+                UserFollower? follow = await _userFollowerService.GetRelationAsync(followerId, followeeId);
 
                 if (follow == null)
                     throw new Exception("Not following this user.");
 
-                follower.Following.Remove(follow);
-                followee.Followers.Remove(follow);
+                User? follower = await _UserRepository.GetByUuid(followerId);
+                User? followee = await _UserRepository.GetByUuid(followeeId);
+
+                if (follower == null || followee == null)
+                    throw new Exception("Follower or followee not found.");
+
+                if (follower.FollowingCount > 0) follower.FollowingCount--;
+                if (followee.FollowersCount > 0) followee.FollowersCount--;
 
                 _userFollowerService.Delete(follow);
-                _UserRepository.Update(follower);
-                _UserRepository.Update(followee);
 
                 await SaveChangesAsync();
             }
@@ -256,6 +245,41 @@ namespace Rediter.Api.Services
             {
                 throw new Exception("Error blocking user: " + ex.Message);
             }
+        }
+
+        public async Task UnblockUser(Guid user, Guid targetUnblock)
+        {
+            try
+            {
+                User? blocker = await _UserRepository.GetByUuid(user);
+                User? blocked = await _UserRepository.GetByUuid(targetUnblock);
+
+                if (blocker == null || blocked == null)
+                    throw new Exception("Blocker or blocked user not found.");
+
+                UserBlock? block = blocker.BlockedUsers.FirstOrDefault(b => b.BlockedId == blocked.Id);
+
+                if (block == null)
+                    throw new Exception("Not blocking this user.");
+
+                _userBlockService.Delete(block);
+
+                await SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error unblocking user: " + ex.Message);
+            }
+        }
+
+        public async Task<IList<UserFeedInfoDTO>> GetBlockedUsers(DateTime? lastCreatedAt, Guid? lastId, int pageSize, Guid currentUserID)
+        {
+            return await _UserRepository.GetBlockedUsers(lastCreatedAt, lastId, pageSize, currentUserID);
+        }
+
+        public async  Task<IList<PostFeedDTO>> GetLikedPosts(DateTime? lastCreatedAt, Guid? lastId, int pageSize, Guid currentUserId)
+        {
+            return await _postService.GetLikedPostsByUser(currentUserId, lastCreatedAt, lastId, pageSize);
         }
     }
 }

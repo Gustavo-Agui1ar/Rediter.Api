@@ -1,8 +1,9 @@
-﻿using System.Linq.Expressions;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Rediter.Api.Data;
 using Rediter.Api.DTOs;
 using Rediter.Api.Models;
+using Rediter.Api.Services;
+using System.Linq.Expressions;
 
 namespace Rediter.Api.Repositories
 {
@@ -68,6 +69,21 @@ namespace Rediter.Api.Repositories
                 .ToListAsync(cancellationToken);
         }
 
+        public async Task<IList<UserFeedInfoDTO>> GetBlockedUsers(DateTime? lastCreatedAt, Guid? lastId, int pageSize, Guid currentUserID)
+        {
+            ValidatePaginationState(lastCreatedAt, lastId);
+
+            var blockedUsersQuery = _dbSet.AsNoTracking()
+                .Where(u => u.BlockedBy.Any(b => b.BlockerId == currentUserID));
+
+            return await ApplyKeysetPagination(blockedUsersQuery, lastCreatedAt, lastId)
+                .OrderByDescending(u => u.CreatedAt)
+                .ThenByDescending(u => u.Id)
+                .Select(MapToUserFeedInfoDTO(currentUserID)) 
+                .Take(pageSize)
+                .ToListAsync();
+        }
+
         public async Task<bool> IsFollowingAsync(Guid currentUserId, Guid targetUserId)
         {
             if (currentUserId == targetUserId)
@@ -97,6 +113,31 @@ namespace Rediter.Api.Repositories
                 OwnProfile = u.Id == currentUserId,
                 IsFollowing = currentUserId != Guid.Empty && u.Followers.Any(f => f.FollowerId == currentUserId)
             };
+        }
+
+        public async Task<UserDTO> GetUserProfileAsync(Guid targetUserId, Guid currentUserId)
+        {
+            return await _context.Users
+                .Where(u => u.Id == targetUserId)
+                .Select(u => new UserDTO
+                {
+                    UserID = u.Id.ToString(),
+                    Name = u.Name,
+                    Email = u.Email,
+
+                    ImageName = u.ProfilePicture != null ? u.ProfilePicture.FileName : null,
+                    ImageCover = u.ProfileCover != null ? u.ProfileCover.FileName : null,
+                    Description = u.Description,
+
+                    IsFollowing = _context.Set<UserFollower>()
+                        .Any(f => f.FollowerId == currentUserId && f.FollowingId == u.Id),
+
+                    isBlocked = u.BlockedBy.Any(b => b.BlockerId == currentUserId),
+
+                    Followers = u.FollowersCount,
+                    Following = u.FollowingCount
+                })
+                .FirstOrDefaultAsync() ?? throw new Exception("User not found.");
         }
     }
 }

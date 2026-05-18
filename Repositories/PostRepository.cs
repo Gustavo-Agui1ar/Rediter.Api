@@ -117,6 +117,85 @@ namespace Rediter.Api.Repositories
                 .ExecuteUpdateAsync(s => s.SetProperty(p => p.LikesCount, p => p.LikesCount + 1));
         }
 
+        public async Task<IList<PostFeedDTO>> GetLikedPostsByUserAsync(
+            Guid userId,
+            DateTime? lastCreatedAt,
+            Guid? lastId,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            ValidatePaginationState(lastCreatedAt, lastId);
+
+            var query = _dbSet.AsNoTracking()
+                .Where(p => p.Likes.Any(l => l.UserId == userId));
+
+            return await ApplyKeysetPagination(query, lastCreatedAt, lastId)
+                .OrderByDescending(p => p.CreatedAt)
+                .ThenByDescending(p => p.Id)
+                .Select(MapToPostFeedDTO(userId)) 
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IList<PostFeedDTO>> GetDiscoverPosts(
+             Guid currentUserId,
+             int? lastScore,
+             DateTime? lastCreatedAt,
+             Guid? lastId,
+             int pageSize,
+             CancellationToken cancellationToken = default)
+        {
+            ValidatePaginationState(lastCreatedAt, lastId);
+
+            var query = _dbSet.AsNoTracking().Where(p => p.ParentPostId == null && p.UserId != currentUserId);
+
+            if (lastScore.HasValue && lastCreatedAt.HasValue && lastId.HasValue)
+            {
+                query = query.Where(p =>
+                    (p.LikesCount * 1 + p.CommentsCount * 2) < lastScore ||
+                    ((p.LikesCount * 1 + p.CommentsCount * 2) == lastScore && p.CreatedAt < lastCreatedAt) ||
+                    ((p.LikesCount * 1 + p.CommentsCount * 2) == lastScore && p.CreatedAt == lastCreatedAt && p.Id.CompareTo(lastId) < 0)
+                );
+            }
+
+            return await query
+                .OrderByDescending(p => (p.LikesCount * 1 + p.CommentsCount * 2))
+                .ThenByDescending(p => p.CreatedAt)
+                .ThenByDescending(p => p.Id)
+                .Select(MapToPostFeedDTO(currentUserId))
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IList<PostFeedDTO>> GetFollowingPosts(
+            Guid currentUserId,
+            DateTime? lastCreatedAt,
+            Guid? lastId,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            ValidatePaginationState(lastCreatedAt, lastId);
+
+            var query = _dbSet.AsNoTracking()
+                .Where(p => p.ParentPostId == null &&
+                            p.User!.Followers.Any(f => f.FollowerId == currentUserId));
+
+            if (lastCreatedAt.HasValue && lastId.HasValue)
+            {
+                query = query.Where(p =>
+                    p.CreatedAt < lastCreatedAt ||
+                    (p.CreatedAt == lastCreatedAt && p.Id.CompareTo(lastId) < 0)
+                );
+            }
+
+            return await query
+                .OrderByDescending(p => p.CreatedAt)
+                .ThenByDescending(p => p.Id)
+                .Select(MapToPostFeedDTO(currentUserId))
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+        }
+
         private static void ValidatePaginationState(DateTime? lastCreatedAt, Guid? lastId)
         {
             if (lastCreatedAt.HasValue != lastId.HasValue)
@@ -145,7 +224,8 @@ namespace Rediter.Api.Repositories
                 LikedByCurrentUser = currentUserId != Guid.Empty && p.Likes.Any(l => l.UserId == currentUserId),
                 PostUserID = p.UserId.ToString(),
                 IsFollowing = currentUserId != Guid.Empty && p.User.Followers.Any(f => f.FollowerId == currentUserId),
-                OwnPost = p.UserId == currentUserId
+                OwnPost = p.UserId == currentUserId,
+                Score = (p.LikesCount * 1) + (p.CommentsCount * 2) /* + (p.Reposts.Count * 3)*/
             };
         }
     }

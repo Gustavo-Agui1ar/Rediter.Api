@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Rediter.Api.DTOs;
 using Rediter.Api.Services;
+using System.Diagnostics;
 using System.Security.Claims;
 
 namespace Rediter.Api.Controllers
@@ -20,7 +21,6 @@ namespace Rediter.Api.Controllers
             _logger = logger;
         }
 
-        // Helper para obter e validar o ID do usuário logado sem lançar exceções
         private bool TryGetCurrentUserId(out Guid userId)
         {
             userId = Guid.Empty;
@@ -67,8 +67,26 @@ namespace Rediter.Api.Controllers
             }
         }
 
+        //GET: api/posts/liked
+        [HttpGet("liked")]
+        public async Task<IActionResult> GetLikedPosts([FromQuery] DateTime? lastCreatedAt, [FromQuery] Guid? lastId, [FromQuery] int pageSize)
+        {
+            try
+            {
+                if (!TryGetCurrentUserId(out Guid currentUserId))
+                    return Unauthorized(new { message = "Usuário não encontrado no token." });
+
+                var posts = await _postService.GetLikedPostsByUser(currentUserId, lastCreatedAt, lastId, pageSize);
+                return Ok(posts);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao buscar posts curtidos pelo usuário");
+                return StatusCode(500, new { message = "Erro interno do servidor." });
+            }
+        }
+
         // GET: api/posts/{id}
-        // OTIMIZAÇÃO: Rota restrita a Guid para validação automática
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetPostById([FromRoute] Guid id)
         {
@@ -97,7 +115,6 @@ namespace Rediter.Api.Controllers
         {
             try
             {
-                // Apenas como boa prática, garantir que quem altera está logado
                 if (!TryGetCurrentUserId(out _))
                     return Unauthorized(new { message = "Usuário não encontrado no token." });
 
@@ -127,6 +144,43 @@ namespace Rediter.Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao buscar posts");
+                return StatusCode(500, new { message = "Erro interno do servidor." });
+            }
+        }
+
+        [HttpGet("feed/discover")]
+        public async Task<IActionResult> GetDiscoverPosts([FromQuery] DateTime? lastCreatedAt, [FromQuery] int? lastScore, [FromQuery] Guid? lastId, [FromQuery] int pageSize)
+        {
+            try
+            {
+                if (!TryGetCurrentUserId(out Guid currentUserId))
+                    return Unauthorized(new { message = "Usuário não encontrado no token." });
+
+                var posts = await _postService.GetDiscoverPosts(currentUserId, lastScore, lastCreatedAt, lastId, pageSize);
+                return Ok(posts);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao buscar posts para descoberta");
+                return StatusCode(500, new { message = "Erro interno do servidor." });
+            }
+        }
+
+
+        [HttpGet("feed/following")]
+        public async Task<IActionResult> GetFollowingPosts([FromQuery] DateTime? lastCreatedAt, [FromQuery] Guid? lastId, [FromQuery] int pageSize)
+        {
+            try
+            {
+                if (!TryGetCurrentUserId(out Guid currentUserId))
+                    return Unauthorized(new { message = "Usuário não encontrado no token." });
+
+                var posts = await _postService.GetFollowingPosts(currentUserId, lastCreatedAt, lastId, pageSize);
+                return Ok(posts);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao buscar posts para descoberta");
                 return StatusCode(500, new { message = "Erro interno do servidor." });
             }
         }
@@ -178,8 +232,11 @@ namespace Rediter.Api.Controllers
             {
                 if (!TryGetCurrentUserId(out Guid currentUserId))
                     return Unauthorized(new { message = "Usuário não encontrado no token." });
+                Stopwatch sp = Stopwatch.StartNew();
 
                 var posts = await _postService.GetPostsByUser(userId, lastCreatedAt, lastId, pageSize, currentUserId);
+                Debug.Write($"{sp.ElapsedMilliseconds} ms");
+
                 return Ok(posts);
             }
             catch (Exception ex)

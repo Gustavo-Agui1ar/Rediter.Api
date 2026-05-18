@@ -45,7 +45,7 @@ namespace Rediter.Api.Services
                         if (parentPost != null)
                         {
                             parentPost.CommentsCount++;
-                            _postrepository.Update(parentPost); 
+                            _postrepository.Update(parentPost);
                         }
                     }
 
@@ -67,7 +67,7 @@ namespace Rediter.Api.Services
                         }
                     }
 
-                     _postrepository.Insert(post);
+                    _postrepository.Insert(post);
 
                     await SaveChangesAsync();
                     scope.Complete();
@@ -239,6 +239,21 @@ namespace Rediter.Api.Services
         public async Task AddComment(Guid postId, NewPostDTO dto, Guid userUuid)
         {
             await NewPost(dto, userUuid);
+        }
+
+        public async Task<IList<PostFeedDTO>> GetLikedPostsByUser(Guid currentUserId, DateTime? lastCreatedAt, Guid? lastId, int pageSize)
+        {
+            return await _postrepository.GetLikedPostsByUserAsync(currentUserId, lastCreatedAt, lastId, pageSize);
+        }
+
+        public async Task<IList<PostFeedDTO>> GetDiscoverPosts(Guid currentUserId, int? lastScore, DateTime? lastCreatedAt, Guid? lastId, int pageSize)
+        {
+            return await _postrepository.GetDiscoverPosts(currentUserId, lastScore, lastCreatedAt, lastId, pageSize);
+        }
+
+        public async Task<IList<PostFeedDTO>> GetFollowingPosts(Guid currentUserId, DateTime? lastCreatedAt, Guid? lastId, int pageSize)
+        {
+            return await _postrepository.GetFollowingPosts(currentUserId, lastCreatedAt, lastId, pageSize);
         }
     }
 }

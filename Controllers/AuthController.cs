@@ -23,26 +23,22 @@ namespace Rediter.Api.Controllers
         /// </summary>
         [HttpPost("login")]
         [AllowAnonymous]
-        public async Task<IActionResult> Login([FromBody] UserDTO user)
+        public async Task<IActionResult> Login([FromBody] LoginDTO login)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(user.Email) || string.IsNullOrWhiteSpace(user.Password))
-                    return BadRequest(new { message = "Email e senha são obrigatórios." });
-
-                TokenRequestDTO token = await _authService.AuthenticateFromRediter(user.Email, user.Password);
-
+                TokenRequestDTO token = await _authService.AuthenticateFromRediter(login.Email, login.Password);
                 return Ok(token);
             }
             catch (Exception ex)
             {
                 if (ex.Message.Contains("Invalid", StringComparison.OrdinalIgnoreCase))
                 {
-                    _logger.LogWarning("[Auth] Falha de credenciais para: {Email}", user.Email);
+                    _logger.LogWarning("[Auth] Falha de credenciais para: {Email}", login.Email);
                     return Unauthorized(new { message = "Email ou senha incorretos." }); 
                 }
 
-                _logger.LogError(ex, "[Auth] Erro interno ao realizar login para: {Email}", user.Email);
+                _logger.LogError(ex, "[Auth] Erro interno ao realizar login para: {Email}", login.Email);
                 return StatusCode(500, new { message = "Erro interno ao realizar autenticação." });
             }
         }

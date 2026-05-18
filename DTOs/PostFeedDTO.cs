@@ -16,5 +16,6 @@
         public string PostUserID { get; init; } = string.Empty;
         public bool IsFollowing { get; init; }
         public bool OwnPost { get; init; }
+        public int Score { get; init; }
     }
 }

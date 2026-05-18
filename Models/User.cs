@@ -20,6 +20,9 @@ public class User : IEntity
     public virtual DateTime? RefreshTokenExpiration { get; set; }
     public virtual string? Description { get; set; }
 
+    public virtual int FollowersCount { get; set; } = 0;
+    public virtual int FollowingCount { get; set; } = 0;
+
     public virtual ICollection<UserFollower> Followers { get; set; } = new List<UserFollower>();
     public virtual ICollection<UserFollower> Following { get; set; } = new List<UserFollower>();
 

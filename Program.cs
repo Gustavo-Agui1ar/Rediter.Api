@@ -1,11 +1,12 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Rediter.Api.Repositories;
+using Oracle.ManagedDataAccess.Client;
+using Rediter.Api.Hubs;
 using Rediter.Api.Infrastructure;
+using Rediter.Api.Repositories;
 using Rediter.Api.Services;
 using Rediter.Api.Services.UtilitariesServices;
-using Oracle.ManagedDataAccess.Client;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -71,28 +72,66 @@ builder.Services.Scan(scan => scan
     .AsSelf()
     .WithScopedLifetime());
 
+builder.Services.AddSignalR();
+
 // BGServices
 builder.Services.AddHostedService<ImageCleanupBackgroundService>();
 
 // Autenticacao
-var key = Encoding.ASCII.GetBytes(builder.Configuration["JwtSettings:Secret"]!);
-builder.Services.AddAuthentication(x =>
-{
-    x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    x.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(x =>
-{
-    x.RequireHttpsMetadata = false;
-    x.SaveToken = true;
-    x.TokenValidationParameters = new TokenValidationParameters
+var key = Encoding.ASCII.GetBytes(
+    builder.Configuration["JwtSettings:Secret"]!
+);
+
+builder.Services
+    .AddAuthentication(options =>
     {
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(key),
-        ValidateIssuer = false,
-        ValidateAudience = false
-    };
-});
+        options.DefaultAuthenticateScheme =
+            JwtBearerDefaults.AuthenticationScheme;
+
+        options.DefaultChallengeScheme =
+            JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.RequireHttpsMetadata = false;
+
+        options.SaveToken = true;
+
+        options.TokenValidationParameters =
+            new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+
+                IssuerSigningKey =
+                    new SymmetricSecurityKey(key),
+
+                ValidateIssuer = false,
+
+                ValidateAudience = false
+            };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken =
+                    context.Request.Query["access_token"];
+
+                var path =
+                    context.HttpContext.Request.Path;
+
+                if (
+                    !string.IsNullOrEmpty(accessToken)
+                    && path.StartsWithSegments("/Hubs")
+                )
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            }
+        };
+    });
 
 var app = builder.Build();
 
@@ -111,6 +150,10 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<Rediter.Api.Data.DataContext>();
     db.Database.Migrate();
 }
+
+app.MapHub<NotificationHub>(
+    "/Hubs/NotificationHub"
+);
 
 app.MapControllers();
 app.Run();
