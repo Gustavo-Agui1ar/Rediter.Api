@@ -1,4 +1,4 @@
-﻿namespace Rediter.Api.Services.UtilitariesServices
+﻿namespace Rediter.Api.Interfaces
 {
     public interface IService<T> where T : class
     {

@@ -1,4 +1,4 @@
-﻿using Rediter.Api.Models;
+﻿using Rediter.Api.Interfaces;
 using Rediter.Api.Repositories;
 
 namespace Rediter.Api.Services.UtilitariesServices

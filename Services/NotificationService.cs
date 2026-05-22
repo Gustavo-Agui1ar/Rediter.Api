@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Rediter.Api.DTOs;
 using Rediter.Api.Models;
 using Rediter.Api.Repositories;
 using Rediter.Api.Services.UtilitariesServices;
@@ -9,35 +9,47 @@ namespace Rediter.Api.Services
     {
         private readonly NotificationRepository _notificationRepository;
 
-        public NotificationService(
-            NotificationRepository notificationRepository
-        ) : base(notificationRepository)
+        public NotificationService(NotificationRepository notificationRepository) : base(notificationRepository)
         {
             _notificationRepository = notificationRepository;
         }
 
-        public async Task CreatePostLikedNotification(
-            Guid senderUserId,
-            Guid recipientUserId,
-            Guid postId,
-            string senderUsername
-        )
+        public async Task<int> GetUnreadCountAsync(Guid userId)
         {
-            if (senderUserId == recipientUserId)
-                return;
+            return await _notificationRepository.GetUnreadCountAsync(userId);
+        }
 
-            var notification = new Notification
+        public async Task<IList<NotificationDTO>> GetPaginatedNotificationsAsync(Guid userId, DateTime? lastCreatedAt, Guid? lastId, int pageSize)
+        {
+            return await _notificationRepository.GetPaginatedNotificationsAsync(userId, lastCreatedAt, lastId, pageSize);
+        }
+
+        public async Task MarkAsReadAsync(Guid notificationId, Guid userId)
+        {
+            Notification? notification = await _notificationRepository.GetUnreadNotificationByIdAsync(notificationId, userId);
+
+            if (notification != null)
             {
-                RecipientUserId = recipientUserId,
-                SenderUserId = senderUserId,
-                PostId = postId,
-                Type = NotificationType.PostLiked,
-                IsRead = false
-            };
+                notification.IsRead = true;
+                _notificationRepository.Update(notification);
+                await SaveChangesAsync();
+            }
+        }
 
-            _notificationRepository.Insert(notification);
+        public async Task MarkAllAsReadAsync(Guid userId)
+        {
+            var unreadNotifications = await _notificationRepository.GetAllUnreadNotificationsAsync(userId);
 
-            await SaveChangesAsync();
+            if (unreadNotifications.Any())
+            {
+                foreach (var notification in unreadNotifications)
+                {
+                    notification.IsRead = true;
+                    _notificationRepository.Update(notification);
+                }
+
+                await SaveChangesAsync();
+            }
         }
     }
 }

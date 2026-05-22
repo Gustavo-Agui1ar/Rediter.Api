@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Rediter.Api.Data;
-using Rediter.Api.Models;
+using Rediter.Api.Interfaces;
 
 namespace Rediter.Api.Repositories
 {

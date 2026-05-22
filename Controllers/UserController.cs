@@ -14,10 +14,14 @@ namespace Rediter.Api.Controllers
     public class UsersController : ControllerBase
     {
         private readonly UserService _userService;
+        private readonly UserFollowerService _userFollowerService;
+        private readonly UserBlockService _userBlockService;
 
-        public UsersController(UserService userService)
+        public UsersController(UserService userService, UserFollowerService userFollowerService, UserBlockService userBlockService)
         {
             _userService = userService;
+            _userFollowerService = userFollowerService;
+            _userBlockService = userBlockService;
         }
         private bool TryGetCurrentUserId(out Guid userId)
         {
@@ -150,7 +154,7 @@ namespace Rediter.Api.Controllers
                 if (!TryGetCurrentUserId(out Guid currentUserId))
                     return Unauthorized(new { message = "Session Expired" });
 
-                await _userService.FollowUser(currentUserId, id);
+                await _userFollowerService.FollowUser(currentUserId, id);
 
                 return Ok(new { message = "User followed successfully" });
             }
@@ -168,7 +172,7 @@ namespace Rediter.Api.Controllers
                 if (!TryGetCurrentUserId(out Guid currentUserId))
                     return Unauthorized(new { message = "Session Expired" });
 
-                await _userService.UnfollowUser(currentUserId, id);
+                await _userFollowerService.UnfollowUser(currentUserId, id);
 
                 return Ok(new { message = "User unfollowed successfully" });
             }
@@ -186,7 +190,7 @@ namespace Rediter.Api.Controllers
                 if (!TryGetCurrentUserId(out Guid currentUserId))
                     return Unauthorized(new { message = "Session Expired" });
 
-                await _userService.BlockUser(currentUserId, id);
+                await _userBlockService.BlockUser(currentUserId, id);
                 return Ok(new { message = "User blocked successfully" });
             }
             catch (Exception ex)
@@ -202,7 +206,7 @@ namespace Rediter.Api.Controllers
             {
                 if (!TryGetCurrentUserId(out Guid currentUserId))
                     return Unauthorized(new { message = "Session Expired" });
-                await _userService.UnblockUser(currentUserId, id);
+                await _userBlockService.UnblockUser(currentUserId, id);
                 return Ok(new { message = "User unblocked successfully" });
             }
             catch (Exception ex)
@@ -216,11 +220,10 @@ namespace Rediter.Api.Controllers
         {
             try
             {
-
                 if (!TryGetCurrentUserId(out Guid currentUserId))
                     return Unauthorized(new { message = "Session Expired" });
 
-                var blockedUsers = await _userService.GetBlockedUsers(lastCreatedAt, lastId, pageSize, currentUserId);
+                var blockedUsers = await _userBlockService.GetBlockedUsers(lastCreatedAt, lastId, pageSize, currentUserId);
                 return Ok(blockedUsers);
             }
             catch (Exception ex)

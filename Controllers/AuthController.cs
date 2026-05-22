@@ -35,7 +35,7 @@ namespace Rediter.Api.Controllers
                 if (ex.Message.Contains("Invalid", StringComparison.OrdinalIgnoreCase))
                 {
                     _logger.LogWarning("[Auth] Falha de credenciais para: {Email}", login.Email);
-                    return Unauthorized(new { message = "Email ou senha incorretos." }); 
+                    return BadRequest(new { message = "Email ou senha incorretos." });
                 }
 
                 _logger.LogError(ex, "[Auth] Erro interno ao realizar login para: {Email}", login.Email);
@@ -80,7 +80,7 @@ namespace Rediter.Api.Controllers
             catch (Exception ex)
             {
                 if (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
-                    return NotFound(new { message = "Usuário não encontrado." }); 
+                    return NotFound(new { message = "Usuário não encontrado." });
 
                 _logger.LogError(ex, "[Auth] Erro ao enviar código para: {Email}", request.Email);
                 return StatusCode(500, new { message = "Erro ao enviar código de verificação." });
@@ -133,6 +133,26 @@ namespace Rediter.Api.Controllers
             {
                 _logger.LogError(ex, "[Auth] Erro interno ao atualizar token.");
                 return StatusCode(500, new { message = "Erro ao atualizar sessão." });
+            }
+        }
+
+        [HttpPost("generate-code")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GenerateCode([FromBody] EmailRequestDTO request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request.Email))
+                    return BadRequest(new { message = "O email é obrigatório." });
+                await _authService.SendVerificationCode(request.Email);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                    return NotFound(new { message = "Usuário não encontrado." });
+                _logger.LogError(ex, "[Auth] Erro ao gerar código para: {Email}", request.Email);
+                return StatusCode(500, new { message = "Erro ao gerar código de verificação." });
             }
         }
     }

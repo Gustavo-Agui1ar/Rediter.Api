@@ -1,4 +1,6 @@
-﻿namespace Rediter.Api.Models
+﻿using Rediter.Api.Interfaces;
+
+namespace Rediter.Api.Models
 {
     public enum NotificationType
     {

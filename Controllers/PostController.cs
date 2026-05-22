@@ -13,11 +13,16 @@ namespace Rediter.Api.Controllers
     public class PostController : ControllerBase
     {
         private readonly PostService _postService;
+        private readonly PostUserLikeService _postUserLikeService;
         private readonly ILogger<PostController> _logger;
 
-        public PostController(PostService postService, ILogger<PostController> logger)
+        public PostController(
+            PostService postService,
+            PostUserLikeService postUserLikeService,
+            ILogger<PostController> logger)
         {
             _postService = postService;
+            _postUserLikeService = postUserLikeService;
             _logger = logger;
         }
 
@@ -274,7 +279,7 @@ namespace Rediter.Api.Controllers
                 if (!TryGetCurrentUserId(out Guid currentUserId))
                     return Unauthorized(new { message = "Usuário não encontrado no token." });
 
-                await _postService.LikePost(id, currentUserId);
+                await _postUserLikeService.LikePost(id, currentUserId);
 
                 return Ok(new { message = "Post liked successfully" });
             }
@@ -294,7 +299,7 @@ namespace Rediter.Api.Controllers
                 if (!TryGetCurrentUserId(out Guid currentUserId))
                     return Unauthorized(new { message = "Usuário não encontrado no token." });
 
-                await _postService.UnlikePost(id, currentUserId);
+                await _postUserLikeService.UnlikePost(id, currentUserId);
 
                 return Ok(new { message = "Post unliked successfully" });
             }

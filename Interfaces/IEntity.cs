@@ -1,4 +1,4 @@
-﻿namespace Rediter.Api.Models
+﻿namespace Rediter.Api.Interfaces
 {
     public interface IEntity
     {

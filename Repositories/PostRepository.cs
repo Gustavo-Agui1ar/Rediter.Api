@@ -138,16 +138,31 @@ namespace Rediter.Api.Repositories
         }
 
         public async Task<IList<PostFeedDTO>> GetDiscoverPosts(
-             Guid currentUserId,
-             int? lastScore,
-             DateTime? lastCreatedAt,
-             Guid? lastId,
-             int pageSize,
-             CancellationToken cancellationToken = default)
+            Guid currentUserId,
+            int? lastScore,
+            DateTime? lastCreatedAt,
+            Guid? lastId,
+            int pageSize,
+            CancellationToken cancellationToken = default)
         {
             ValidatePaginationState(lastCreatedAt, lastId);
 
-            var query = _dbSet.AsNoTracking().Where(p => p.ParentPostId == null && p.UserId != currentUserId);
+            var myBlockedUserIds = _context.UserBlocks
+                .AsNoTracking()
+                .Where(b => b.BlockerId == currentUserId)
+                .Select(b => b.BlockedId);
+
+            var usersWhoBlockedMeIds = _context.UserBlocks
+                .AsNoTracking()
+                .Where(b => b.BlockedId == currentUserId)
+                .Select(b => b.BlockerId);
+
+            var query = _dbSet.AsNoTracking()
+                .Where(p => p.ParentPostId == null
+                         && p.UserId != currentUserId
+                         && !myBlockedUserIds.Contains(p.UserId)      
+                         && !usersWhoBlockedMeIds.Contains(p.UserId) 
+                );
 
             if (lastScore.HasValue && lastCreatedAt.HasValue && lastId.HasValue)
             {
@@ -168,17 +183,29 @@ namespace Rediter.Api.Repositories
         }
 
         public async Task<IList<PostFeedDTO>> GetFollowingPosts(
-            Guid currentUserId,
-            DateTime? lastCreatedAt,
-            Guid? lastId,
-            int pageSize,
-            CancellationToken cancellationToken = default)
+             Guid currentUserId,
+             DateTime? lastCreatedAt,
+             Guid? lastId,
+             int pageSize,
+             CancellationToken cancellationToken = default)
         {
             ValidatePaginationState(lastCreatedAt, lastId);
 
+            var myBlockedUserIds = _context.UserBlocks
+               .AsNoTracking()
+               .Where(b => b.BlockerId == currentUserId)
+               .Select(b => b.BlockedId);
+
+            var usersWhoBlockedMeIds = _context.UserBlocks
+                .AsNoTracking()
+                .Where(b => b.BlockedId == currentUserId)
+                .Select(b => b.BlockerId);
+
             var query = _dbSet.AsNoTracking()
-                .Where(p => p.ParentPostId == null &&
-                            p.User!.Followers.Any(f => f.FollowerId == currentUserId));
+                .Where(p => p.ParentPostId == null
+                         && p.User!.Followers.Any(f => f.FollowerId == currentUserId)
+                         && !myBlockedUserIds.Contains(p.UserId)      
+                         && !usersWhoBlockedMeIds.Contains(p.UserId));
 
             if (lastCreatedAt.HasValue && lastId.HasValue)
             {

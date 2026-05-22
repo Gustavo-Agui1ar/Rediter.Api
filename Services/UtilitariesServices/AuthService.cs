@@ -139,5 +139,6 @@ namespace Rediter.Api.Services.UtilitariesServices
             TokenRequestDTO tokens = await GenerateToken(user);
             return (true, "", tokens);
         }
+
     }
 }

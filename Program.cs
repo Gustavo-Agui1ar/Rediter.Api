@@ -2,14 +2,20 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Oracle.ManagedDataAccess.Client;
+using RabbitMQ.Client;
+using Rediter.Api.Data;
+using Rediter.Api.Data.Interceptors;
 using Rediter.Api.Hubs;
 using Rediter.Api.Infrastructure;
 using Rediter.Api.Repositories;
 using Rediter.Api.Services;
-using Rediter.Api.Services.UtilitariesServices;
+using Rediter.Api.Services.Dispatchers;
+using Rediter.Api.Services.Workers;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+#region Logs
 
 builder.Logging.AddSimpleConsole(options =>
 {
@@ -17,34 +23,104 @@ builder.Logging.AddSimpleConsole(options =>
     options.SingleLine = true;
 });
 
-// HttpClient
-builder.Services.AddHttpClient();
+Console.WriteLine("====================================");
+Console.WriteLine("[STARTUP] Inicializando Rediter API...");
+Console.WriteLine($"[STARTUP] Ambiente: {builder.Environment.EnvironmentName}");
+Console.WriteLine("====================================");
 
-// Controllers
+#endregion
+
+#region Serviços Base
+
 builder.Services.AddControllers();
-
-// OpenAPI (Swagger)
 builder.Services.AddOpenApi();
+builder.Services.AddHttpClient();
+builder.Services.AddSignalR();
 
-// Configuração de Conexão: Local vs Cloud
-string connectionString;
+#endregion
 
-connectionString = builder.Configuration.GetConnectionString("OracleCloudDb")!;
+#region RabbitMQ
 
-string walletPath = builder.Configuration["OracleWalletPath"]!;
+Console.WriteLine("[RabbitMQ] Criando conexão...");
 
-if (builder.Environment.IsDevelopment())
-    walletPath = builder.Configuration["OracleWalletPathLocal"]!;
+var factory = new ConnectionFactory
+{
+    HostName = "localhost"
+};
+
+var rabbitConnection = await factory.CreateConnectionAsync();
+
+Console.WriteLine($"[RabbitMQ] Conectado: {rabbitConnection.IsOpen}");
+
+builder.Services.AddSingleton<IConnection>(rabbitConnection);
+
+builder.Services.AddScoped<INotificationDispatcher, RabbitMQNotificationDispatcher>();
+
+builder.Services.AddHostedService<NotificationListener>();
+
+Console.WriteLine("[RabbitMQ] Serviços registrados.");
+
+#endregion
+
+#region Notification Queue
+
+builder.Services.AddSingleton<NotificationQueue>();
+
+builder.Services.AddSingleton<INotificationQueue>(sp =>
+    sp.GetRequiredService<NotificationQueue>());
+
+builder.Services.AddHostedService<NotificationDispatcherWorker>();
+
+Console.WriteLine("[NotificationQueue] Queue registrada.");
+
+#endregion
+
+#region Interceptors
+
+builder.Services.AddScoped<NotificationDispatchInterceptor>();
+
+Console.WriteLine("[EF] Interceptors registrados.");
+
+#endregion
+
+#region Oracle
+
+Console.WriteLine("[Oracle] Configurando Oracle Cloud...");
+
+string connectionString =
+    builder.Configuration.GetConnectionString("OracleCloudDb")!;
+
+string walletPath = builder.Environment.IsDevelopment()
+    ? builder.Configuration["OracleWalletPathLocal"]!
+    : builder.Configuration["OracleWalletPath"]!;
 
 OracleConfiguration.TnsAdmin = walletPath;
 OracleConfiguration.WalletLocation = walletPath;
 OracleConfiguration.SqlNetWalletOverride = true;
 
-builder.Services.AddDbContext<Rediter.Api.Data.DataContext>(options =>
-    options.UseLazyLoadingProxies()
-           .UseOracle(connectionString, b => b.UseOracleSQLCompatibility(OracleSQLCompatibility.DatabaseVersion21)));
+Console.WriteLine($"[Oracle] Wallet: {walletPath}");
 
-// Repositórios
+builder.Services.AddDbContext<DataContext>((serviceProvider, options) =>
+{
+    var interceptor =
+        serviceProvider.GetRequiredService<NotificationDispatchInterceptor>();
+
+    options
+        //.UseLazyLoadingProxies() // Evite usar se não precisar
+        .UseOracle(connectionString, b =>
+            b.UseOracleSQLCompatibility(
+                OracleSQLCompatibility.DatabaseVersion21))
+        .AddInterceptors(interceptor);
+});
+
+Console.WriteLine("[Oracle] DbContext registrado.");
+
+#endregion
+
+#region Scrutor - Repositories
+
+Console.WriteLine("[DI] Registrando repositories...");
+
 builder.Services.Scan(scan => scan
     .FromAssemblyOf<UserRepository>()
     .AddClasses(classes => classes
@@ -52,13 +128,19 @@ builder.Services.Scan(scan => scan
             !type.IsAbstract &&
             type.BaseType != null &&
             type.BaseType.IsGenericType &&
-            type.BaseType.GetGenericTypeDefinition() == typeof(BaseRepository<>)
-        )
-    )
+            type.BaseType.GetGenericTypeDefinition() ==
+                typeof(BaseRepository<>)))
     .AsSelf()
     .WithScopedLifetime());
 
-// Serviços
+Console.WriteLine("[DI] Repositories registrados.");
+
+#endregion
+
+#region Scrutor - Services
+
+Console.WriteLine("[DI] Registrando services...");
+
 builder.Services.Scan(scan => scan
     .FromAssemblyOf<UserService>()
     .AddClasses(classes => classes
@@ -66,21 +148,22 @@ builder.Services.Scan(scan => scan
             type.Name.EndsWith("Service") &&
             type.Name != "BaseService" &&
             !type.IsAbstract &&
-            !typeof(BackgroundService).IsAssignableFrom(type)
-        )
-    )
+            !typeof(BackgroundService).IsAssignableFrom(type)))
     .AsSelf()
     .WithScopedLifetime());
 
-builder.Services.AddSignalR();
-
-// BGServices
 builder.Services.AddHostedService<ImageCleanupBackgroundService>();
 
-// Autenticacao
+Console.WriteLine("[DI] Services registrados.");
+
+#endregion
+
+#region JWT
+
+Console.WriteLine("[JWT] Configurando autenticação...");
+
 var key = Encoding.ASCII.GetBytes(
-    builder.Configuration["JwtSettings:Secret"]!
-);
+    builder.Configuration["JwtSettings:Secret"]!);
 
 builder.Services
     .AddAuthentication(options =>
@@ -94,19 +177,16 @@ builder.Services
     .AddJwtBearer(options =>
     {
         options.RequireHttpsMetadata = false;
-
         options.SaveToken = true;
 
         options.TokenValidationParameters =
             new TokenValidationParameters
             {
                 ValidateIssuerSigningKey = true,
-
                 IssuerSigningKey =
                     new SymmetricSecurityKey(key),
 
                 ValidateIssuer = false,
-
                 ValidateAudience = false
             };
 
@@ -120,10 +200,8 @@ builder.Services
                 var path =
                     context.HttpContext.Request.Path;
 
-                if (
-                    !string.IsNullOrEmpty(accessToken)
-                    && path.StartsWithSegments("/Hubs")
-                )
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    path.StartsWithSegments("/Hubs"))
                 {
                     context.Token = accessToken;
                 }
@@ -133,27 +211,112 @@ builder.Services
         };
     });
 
+Console.WriteLine("[JWT] Autenticação configurada.");
+
+#endregion
+
+#region Build App
+
+Console.WriteLine("[APP] Construindo aplicação...");
+
 var app = builder.Build();
+
+Console.WriteLine("[APP] Aplicação construída.");
+
+#endregion
+
+#region OpenAPI
 
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+
+    Console.WriteLine("[OpenAPI] Endpoint habilitado.");
 }
 
-//app.UseHttpsRedirection();
+#endregion
+
+#region Middleware
+
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Execução de Migrations
-using (var scope = app.Services.CreateScope())
+Console.WriteLine("[Middleware] Authentication configurado.");
+Console.WriteLine("[Middleware] Authorization configurado.");
+
+#endregion
+
+#region Database Validation
+
+try
 {
-    var db = scope.ServiceProvider.GetRequiredService<Rediter.Api.Data.DataContext>();
-    db.Database.Migrate();
+    using var scope = app.Services.CreateScope();
+
+    Console.WriteLine("[Oracle] Resolvendo DbContext...");
+
+    var db =
+        scope.ServiceProvider.GetRequiredService<DataContext>();
+
+    Console.WriteLine("[Oracle] DbContext resolvido.");
+
+    Console.WriteLine("[Oracle] Testando conexão...");
+
+    bool canConnect =
+        await db.Database.CanConnectAsync();
+
+    Console.WriteLine($"[Oracle] Conexão OK: {canConnect}");
+
+    // Somente em DEV
+    if (app.Environment.IsDevelopment())
+    {
+        Console.WriteLine("[Oracle] Executando migrations...");
+
+        await db.Database.MigrateAsync();
+
+        Console.WriteLine("[Oracle] Migrations concluídas.");
+    }
+}
+catch (Exception ex)
+{
+    Console.WriteLine("[Oracle] ERRO:");
+    Console.WriteLine(ex.ToString());
 }
 
-app.MapHub<NotificationHub>(
-    "/Hubs/NotificationHub"
-);
+#endregion
+
+#region Endpoints
+
+app.MapHub<NotificationHub>("/Hubs/NotificationHub");
+
+Console.WriteLine("[SignalR] NotificationHub mapeado.");
 
 app.MapControllers();
+
+Console.WriteLine("[Controllers] Controllers mapeados.");
+
+app.MapGet("/", () => "Rediter API Running");
+
+#endregion
+
+#region Shutdown
+
+app.Lifetime.ApplicationStopping.Register(() =>
+{
+    Console.WriteLine("[SHUTDOWN] Encerrando RabbitMQ...");
+
+    rabbitConnection.CloseAsync()
+        .GetAwaiter()
+        .GetResult();
+
+    Console.WriteLine("[SHUTDOWN] RabbitMQ encerrado.");
+});
+
+#endregion
+
+Console.WriteLine("====================================");
+Console.WriteLine("[READY] Rediter API iniciada.");
+Console.WriteLine("[READY] Health: /");
+Console.WriteLine("[READY] SignalR: /Hubs/NotificationHub");
+Console.WriteLine("====================================");
+
 app.Run();
