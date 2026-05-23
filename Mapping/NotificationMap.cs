@@ -4,16 +4,13 @@ using Rediter.Api.Models;
 
 namespace Rediter.Api.Data.Mappings
 {
-    public class NotificationMap : IEntityTypeConfiguration<Notification>
+    public class NotificationMap : EntityMap<Notification>
     {
-        public void Configure(EntityTypeBuilder<Notification> builder)
+        public override void Configure(EntityTypeBuilder<Notification> builder)
         {
+            base.Configure(builder);
+
             builder.ToTable("notifications");
-
-            builder.HasKey(x => x.Id);
-
-            builder.Property(x => x.Id)
-                .HasColumnName("id");
 
             builder.Property(x => x.RecipientUserId)
                 .HasColumnName("recipient_user_id")
@@ -34,10 +31,6 @@ namespace Rediter.Api.Data.Mappings
             builder.Property(x => x.IsRead)
                 .HasColumnName("is_read")
                 .HasDefaultValue(false);
-
-            builder.Property(x => x.CreatedAt)
-                .HasColumnName("created_at")
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             builder.HasIndex(x => x.RecipientUserId);
 

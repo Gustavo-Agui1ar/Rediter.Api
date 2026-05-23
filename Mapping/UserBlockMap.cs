@@ -4,20 +4,16 @@ using Rediter.Api.Models;
 
 namespace Rediter.Api.Data.Mappings
 {
-    public class UserBlockMap : IEntityTypeConfiguration<UserBlock>
+    public class UserBlockMap : EntityMap<UserBlock>
     {
-        public void Configure(EntityTypeBuilder<UserBlock> builder)
+        public override void Configure(EntityTypeBuilder<UserBlock> builder)
         {
-            builder.ToTable("user_blocks");
+            base.Configure(builder);
 
-            builder.HasKey(x => x.Id);
+            builder.ToTable("user_blocks");
 
             builder.HasIndex(x => new { x.BlockerId, x.BlockedId })
                    .IsUnique();
-
-            builder.Property(x => x.CreatedAt)
-                .HasColumnName("created_at")
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             builder.Property(x => x.BlockerId)
                 .HasColumnName("blocker_id");

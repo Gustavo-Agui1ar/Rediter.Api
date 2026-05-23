@@ -4,13 +4,13 @@ using Rediter.Api.Models;
 
 namespace Rediter.Api.Data.Mappings
 {
-    public class PostConfiguration : IEntityTypeConfiguration<Post>
+    public class PostConfiguration : EntityMap<Post>
     {
-        public void Configure(EntityTypeBuilder<Post> builder)
+        public override void Configure(EntityTypeBuilder<Post> builder)
         {
-            builder.ToTable("Posts");
+            base.Configure(builder);
 
-            builder.HasKey(p => p.Id);
+            builder.ToTable("Posts");
 
             builder.Property(p => p.Content)
                 .HasMaxLength(500); 
@@ -18,9 +18,6 @@ namespace Rediter.Api.Data.Mappings
             builder.Property(p => p.LocationName)
                 .HasMaxLength(255);
 
-            builder.Property(p => p.CreatedAt)
-                .IsRequired()
-                .HasDefaultValueSql("CURRENT_TIMESTAMP"); 
             builder.Property(p => p.UpdatedAt)
                 .IsRequired()
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");

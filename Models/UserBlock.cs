@@ -2,11 +2,8 @@
 
 namespace Rediter.Api.Models;
 
-public class UserBlock : IEntity
+public class UserBlock : Entity
 {
-    public virtual Guid Id { get; set; }
-    public virtual DateTime CreatedAt { get; set; }
-
     public virtual Guid BlockerId { get; set; }
     public virtual User Blocker { get; set; } = null!;
 

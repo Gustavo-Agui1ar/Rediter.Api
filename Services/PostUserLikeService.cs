@@ -12,16 +12,13 @@ namespace Rediter.Api.Services
     {
         private readonly UserPostLikeRepository _postUserLikeRepository;
         private readonly PostRepository _postRepository;
-        private readonly NotificationService _notificationService;
 
         public PostUserLikeService(
             UserPostLikeRepository postUserLikeRepository,
-            PostRepository postRepository,
-            NotificationService notificationService) : base(postUserLikeRepository)
+            PostRepository postRepository) : base(postUserLikeRepository)
         {
             _postUserLikeRepository = postUserLikeRepository;
             _postRepository = postRepository;
-            _notificationService = notificationService;
         }
         public async Task<bool> Exists(Guid postId, Guid userId)
         {
@@ -46,17 +43,6 @@ namespace Rediter.Api.Services
                     _postUserLikeRepository.Insert(like);
                     _postRepository.Update(post);
 
-                    Notification notification = new Notification
-                    {
-                        RecipientUserId = post.UserId,
-                        SenderUserId = userId,
-                        PostId = post.Id,
-                        Type = NotificationType.PostLiked,
-                        IsRead = false,
-                        CreatedAt = DateTime.UtcNow
-                    };
-
-                    _notificationService.Insert(notification);
                     await SaveChangesAsync();
 
                     scope.Complete();

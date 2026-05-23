@@ -1,22 +1,21 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Rediter.Api.Data.Mappings;
 using Rediter.Api.Models;
 
 namespace Rediter.Api.Mappings
 {
-    public class UserMap : IEntityTypeConfiguration<User>
+    public class UserMap : EntityMap<User>
     {
-        public void Configure(EntityTypeBuilder<User> builder)
+        public override void Configure(EntityTypeBuilder<User> builder)
         {
+            base.Configure(builder);
+
             builder.ToTable("users");
 
-            builder.HasKey(x => x.Id);
-
-            builder.Property(x => x.Id).HasColumnName("ID");
             builder.Property(x => x.Name).HasColumnName("NAME").IsRequired().HasMaxLength(150);
             builder.Property(x => x.Email).HasColumnName("EMAIL").IsRequired().HasMaxLength(255);
             builder.Property(x => x.Password).HasColumnName("PASSWORD");
-            builder.Property(x => x.CreatedAt).HasColumnName("CREATED_AT").IsRequired();
             builder.Property(x => x.IsVerified).HasColumnName("IS_VERIFIED").HasDefaultValue(false);
             builder.Property(x => x.VerificationCode).HasColumnName("VERIFICATION_CODE");
             builder.Property(x => x.RefreshToken).HasColumnName("REFRESH_TOKEN");

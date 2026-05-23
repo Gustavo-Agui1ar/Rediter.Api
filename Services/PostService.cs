@@ -13,16 +13,13 @@ namespace Rediter.Api.Services
     {
         private readonly PostRepository _postrepository;
         private readonly PictureService _pictureService;
-        private readonly NotificationService _notificationService;
 
         public PostService(
             PostRepository postrepository,
-            PictureService pictureService,
-            NotificationService notificationService) : base(postrepository)
+            PictureService pictureService) : base(postrepository)
         {
             _postrepository = postrepository;
             _pictureService = pictureService;
-            _notificationService = notificationService;
         }
 
         public async Task NewPost(NewPostDTO dto, Guid userUuid)
@@ -41,6 +38,7 @@ namespace Rediter.Api.Services
                         ParentPostId = null
                     };
 
+
                     if (!string.IsNullOrEmpty(dto.ParentPostId))
                     {
                         post.ParentPostId = new Guid(dto.ParentPostId);
@@ -51,18 +49,6 @@ namespace Rediter.Api.Services
                             parentPost.CommentsCount++;
                             _postrepository.Update(parentPost);
                         }
-
-                        Notification notification = new Notification
-                        {
-                            RecipientUserId = parentPost!.UserId, 
-                            SenderUserId = userUuid,
-                            PostId = post.Id,
-                            Type = NotificationType.CommentAdded,
-                            IsRead = false,
-                            CreatedAt = DateTime.UtcNow
-                        };
-
-                        _notificationService.Insert(notification);
                     }
 
                     if (dto.Pictures != null && dto.Pictures.Count > 0)
@@ -82,6 +68,7 @@ namespace Rediter.Api.Services
                     }
 
                     _postrepository.Insert(post);
+
                     await SaveChangesAsync();
                     scope.Complete();
                 }

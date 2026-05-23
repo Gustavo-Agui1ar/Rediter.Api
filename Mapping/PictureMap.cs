@@ -1,24 +1,17 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Rediter.Api.Data.Mappings;
 using Rediter.Api.Models;
 
 namespace Rediter.Api.Mappings;
 
-public class PictureMap : IEntityTypeConfiguration<Picture>
+public class PictureMap : EntityMap<Picture>
 {
-    public void Configure(EntityTypeBuilder<Picture> builder)
+    public override void Configure(EntityTypeBuilder<Picture> builder)
     {
+        base.Configure(builder);
+
         builder.ToTable("pictures");
-
-        builder.HasKey(x => x.Id);
-
-        builder.Property(x => x.Id)
-            .HasColumnName("id")
-            .ValueGeneratedOnAdd(); 
-
-        builder.Property(x => x.CreatedAt)
-            .HasColumnName("created_at")
-            .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         builder.Property(x => x.FileName)
             .HasColumnName("file_name")

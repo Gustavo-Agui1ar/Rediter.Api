@@ -4,13 +4,12 @@ using Microsoft.IdentityModel.Tokens;
 using Oracle.ManagedDataAccess.Client;
 using RabbitMQ.Client;
 using Rediter.Api.Data;
-using Rediter.Api.Data.Interceptors;
 using Rediter.Api.Hubs;
 using Rediter.Api.Infrastructure;
+using Rediter.Api.Infrastructure.Notification;
 using Rediter.Api.Repositories;
 using Rediter.Api.Services;
 using Rediter.Api.Services.Dispatchers;
-using Rediter.Api.Services.Workers;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -77,7 +76,7 @@ Console.WriteLine("[NotificationQueue] Queue registrada.");
 
 #region Interceptors
 
-builder.Services.AddScoped<NotificationDispatchInterceptor>();
+builder.Services.AddScoped<NotificationInterceptor>();
 
 Console.WriteLine("[EF] Interceptors registrados.");
 
@@ -103,7 +102,7 @@ Console.WriteLine($"[Oracle] Wallet: {walletPath}");
 builder.Services.AddDbContext<DataContext>((serviceProvider, options) =>
 {
     var interceptor =
-        serviceProvider.GetRequiredService<NotificationDispatchInterceptor>();
+        serviceProvider.GetRequiredService<NotificationInterceptor>();
 
     options
         //.UseLazyLoadingProxies() // Evite usar se não precisar

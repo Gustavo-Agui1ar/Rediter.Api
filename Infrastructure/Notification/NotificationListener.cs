@@ -6,7 +6,7 @@ using RabbitMQ.Client.Events;
 using Rediter.Api.Hubs;
 using Rediter.Api.Models;
 
-namespace Rediter.Api.Services.Workers
+namespace Rediter.Api.Infrastructure.Notification
 {
     public class NotificationListener : BackgroundService
     {

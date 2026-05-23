@@ -1,23 +1,17 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Rediter.Api.Data.Mappings;
 using Rediter.Api.Models;
 
 namespace Rediter.Api.Mappings;
 
-public class PostImageMap : IEntityTypeConfiguration<PostImage>
+public class PostImageMap : EntityMap<PostImage>
 {
-    public void Configure(EntityTypeBuilder<PostImage> builder)
+    public override void Configure(EntityTypeBuilder<PostImage> builder)
     {
+        base.Configure(builder);
+
         builder.ToTable("post_images");
-
-        builder.HasKey(x => x.Id);
-
-        builder.Property(x => x.Id)
-            .HasColumnName("id");
-
-        builder.Property(x => x.CreatedAt)
-            .HasColumnName("created_at")
-            .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         builder.Property(x => x.PostId)
             .HasColumnName("post_id")
@@ -30,10 +24,6 @@ public class PostImageMap : IEntityTypeConfiguration<PostImage>
         builder.Property(x => x.DisplayOrder)
             .HasColumnName("display_order")
             .HasDefaultValue(0);
-
-        builder.Property(x => x.CreatedAt)
-            .HasColumnName("created_at")
-            .IsRequired();
 
         builder.HasOne(x => x.Post)
             .WithMany(p => p.PostImages) 

@@ -2,10 +2,8 @@
 
 namespace Rediter.Api.Models;
 
-public class Picture : IEntity
+public class Picture : Entity
 {
-    public virtual Guid Id { get; set; }
-    public virtual DateTime CreatedAt { get; set; }
     public virtual string FileName { get; set; } = null!;
     public virtual string StoragePath { get; set; } = null!;
     public virtual string MimeType { get; set; } = null!;

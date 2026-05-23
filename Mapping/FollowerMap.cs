@@ -4,20 +4,16 @@ using Rediter.Api.Models;
 
 namespace Rediter.Api.Data.Mappings
 {
-    public class UserFollowerMap : IEntityTypeConfiguration<UserFollower>
+    public class UserFollowerMap : EntityMap<UserFollower>
     {
-        public void Configure(EntityTypeBuilder<UserFollower> builder)
+        public override void Configure(EntityTypeBuilder<UserFollower> builder)
         {
-            builder.ToTable("user_followers");
+            base.Configure(builder);
 
-            builder.HasKey(x => x.Id);
+            builder.ToTable("user_followers");
 
             builder.HasIndex(x => new { x.FollowerId, x.FollowingId })
                    .IsUnique();
-
-            builder.Property(x => x.CreatedAt)
-                .HasColumnName("created_at")
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             builder.Property(x => x.FollowerId)
                 .HasColumnName("follower_id");
