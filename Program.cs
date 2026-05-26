@@ -11,6 +11,8 @@ using Rediter.Api.Repositories;
 using Rediter.Api.Services;
 using Rediter.Api.Services.Dispatchers;
 using System.Text;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,6 +40,34 @@ builder.Services.AddSignalR();
 
 #endregion
 
+#region Firebase
+
+Console.WriteLine("[Firebase] Inicializando Firebase Admin SDK...");
+
+string firebasePath = builder.Configuration["GoogleSettings:FirebasePath"]!;
+
+string fullFirebasePath = Path.Combine(builder.Environment.ContentRootPath, firebasePath);
+
+FirebaseApp.Create(new AppOptions()
+{
+    Credential = GoogleCredential.FromFile(fullFirebasePath)
+});
+
+Console.WriteLine("[Firebase] Firebase inicializado.");
+
+#endregion
+
+#region MediatR
+Console.WriteLine("[DI] Registrando MediatR (Handlers e Eventos)...");
+
+builder.Services.AddMediatR(cfg =>
+{
+    cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
+});
+
+Console.WriteLine("[DI] MediatR registrado.");
+#endregion
+
 #region RabbitMQ
 
 Console.WriteLine("[RabbitMQ] Criando conexão...");
@@ -58,19 +88,6 @@ builder.Services.AddScoped<INotificationDispatcher, RabbitMQNotificationDispatch
 builder.Services.AddHostedService<NotificationListener>();
 
 Console.WriteLine("[RabbitMQ] Serviços registrados.");
-
-#endregion
-
-#region Notification Queue
-
-builder.Services.AddSingleton<NotificationQueue>();
-
-builder.Services.AddSingleton<INotificationQueue>(sp =>
-    sp.GetRequiredService<NotificationQueue>());
-
-builder.Services.AddHostedService<NotificationDispatcherWorker>();
-
-Console.WriteLine("[NotificationQueue] Queue registrada.");
 
 #endregion
 

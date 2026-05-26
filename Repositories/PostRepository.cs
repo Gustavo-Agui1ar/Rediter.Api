@@ -25,6 +25,8 @@ namespace Rediter.Api.Repositories
 
             var query = _dbSet.AsNoTracking().Where(p => p.UserId == userId);
 
+            query = query.Where(p => p.ParentPostId == null);
+
             return await ApplyKeysetPagination(query, lastCreatedAt, lastId)
                 .OrderByDescending(p => p.CreatedAt)
                 .ThenByDescending(p => p.Id)
@@ -103,18 +105,6 @@ namespace Rediter.Api.Repositories
                 .Where(p => p.Id == postId)
                 .Select(MapToPostFeedDTO(currentUserId))
                 .FirstOrDefaultAsync();
-        }
-
-        public async Task AddLike(UserPostLike like)
-        {
-            await _context.Set<UserPostLike>().AddAsync(like);
-        }
-
-        public async Task IncrementLikesCount(Guid postId)
-        {
-            await _context.Posts
-                .Where(p => p.Id == postId)
-                .ExecuteUpdateAsync(s => s.SetProperty(p => p.LikesCount, p => p.LikesCount + 1));
         }
 
         public async Task<IList<PostFeedDTO>> GetLikedPostsByUserAsync(

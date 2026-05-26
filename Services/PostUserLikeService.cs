@@ -37,7 +37,7 @@ namespace Rediter.Api.Services
             {
                 try
                 {
-                    UserPostLike like = new UserPostLike { PostId = post.Id, UserId = userId, CreatedAt = DateTime.UtcNow };
+                    UserPostLike like = new UserPostLike(userId, post.Id, post.UserId);
                     post.LikesCount++;
 
                     _postUserLikeRepository.Insert(like);

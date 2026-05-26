@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Oracle.EntityFrameworkCore.Metadata;
 using Rediter.Api.Data;
@@ -11,9 +12,11 @@ using Rediter.Api.Data;
 namespace Rediter.Api.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20260523144935_ChangeRelationIdAndDataTime")]
+    partial class ChangeRelationIdAndDataTime
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -237,11 +240,6 @@ namespace Rediter.Api.Migrations
                         .HasColumnType("NVARCHAR2(500)")
                         .HasColumnName("DESCRIPTION");
 
-                    b.Property<string>("DeviceToken")
-                        .HasMaxLength(255)
-                        .HasColumnType("NVARCHAR2(255)")
-                        .HasColumnName("DEVICE_TOKEN");
-
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -380,7 +378,7 @@ namespace Rediter.Api.Migrations
                     b.ToTable("USER_FOLLOWERS", (string)null);
                 });
 
-            modelBuilder.Entity("UserPostLike", b =>
+            modelBuilder.Entity("Rediter.Api.Models.UserPostLike", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -526,7 +524,7 @@ namespace Rediter.Api.Migrations
                     b.Navigation("Following");
                 });
 
-            modelBuilder.Entity("UserPostLike", b =>
+            modelBuilder.Entity("Rediter.Api.Models.UserPostLike", b =>
                 {
                     b.HasOne("Rediter.Api.Models.Post", "Post")
                         .WithMany("Likes")

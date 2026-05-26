@@ -1,14 +1,21 @@
 ﻿using Microsoft.AspNetCore.StaticFiles;
-using Microsoft.EntityFrameworkCore;
 using Rediter.Api.Models;
 using Rediter.Api.Repositories;
 using Rediter.Api.Services.UtilitariesServices;
 using System.Transactions;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using System.Collections.Concurrent;
+using System.Threading;
+
 
 namespace Rediter.Api.Services
 {
     public class PictureService : BaseService<Picture>
     {
+        
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> _thumbLocks = new();
         private readonly PictureRepository _pictureRepository;
         private readonly ILogger<PictureService> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
@@ -105,57 +112,125 @@ namespace Rediter.Api.Services
 
         public async Task<Picture> CreatePicture(IFormFile file)
         {
-            _logger.LogInformation("[PictureService] Iniciando salvamento de nova imagem. Arquivo original: {OriginalFileName}, Tamanho: {FileSize} bytes", file.FileName, file.Length);
+            _logger.LogInformation("[PictureService] Iniciando salvamento de nova arquivo. Original: {OriginalFileName}, Tamanho: {FileSize} bytes", file.FileName, file.Length);
 
-            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+            bool isImage = file.ContentType.StartsWith("image/");
+            var fileExtension = isImage ? ".jpg" : Path.GetExtension(file.FileName);
+
+            var fileName = $"{Guid.NewGuid()}{fileExtension}";
             var folder = GetUploadsDirectory();
-            var filePath = Path.Combine(folder, fileName);
 
-            bool fileSavedToDisk = false;
+            var filePath = Path.Combine(folder, fileName);
+            string? thumbPath = isImage ? Path.Combine(folder, $"{Path.GetFileNameWithoutExtension(fileName)}_thumb.jpg") : null;
+
+            bool filesSavedToDisk = false;
 
             using var scope = new TransactionScope(TransactionScopeOption.Required, TransactionScopeAsyncFlowOption.Enabled);
             try
             {
-                using (var stream = new FileStream(filePath, FileMode.Create))
+                if (isImage)
                 {
-                    await file.CopyToAsync(stream);
-                    fileSavedToDisk = true;
-                    _logger.LogDebug("[PictureService] Arquivo salvo no disco com sucesso: {FilePath}", filePath);
+                    using var imageStream = file.OpenReadStream();
+                    using var image = await Image.LoadAsync(imageStream);
+
+                    image.Mutate(x =>
+                    {
+                        bool isLandscape = image.Width > image.Height;
+                        bool isPortrait = image.Height > image.Width;
+                        bool isSquare = image.Width == image.Height;
+
+                        if (isSquare)
+                        {
+                            x.Resize(new ResizeOptions
+                            {
+                                Mode = ResizeMode.Crop,
+                                Size = new Size(1080, 1080)
+                            });
+                        }
+                        else if (isLandscape)
+                        {
+                            x.Resize(new ResizeOptions
+                            {
+                                Mode = ResizeMode.Max,
+                                Size = new Size(1920, 1080)
+                            });
+                        }
+                        else if (isPortrait)
+                        {
+                            x.Resize(new ResizeOptions
+                            {
+                                Mode = ResizeMode.Max,
+                                Size = new Size(1080, 1920)
+                            });
+                        }
+                    });
+
+                    await image.SaveAsJpegAsync(filePath, new JpegEncoder { Quality = 80 });
+                    _logger.LogDebug("[PictureService] Imagem principal otimizada e salva: {FilePath}", filePath);
+
+                    image.Mutate(x => x.Resize(new ResizeOptions
+                    {
+                        Mode = ResizeMode.Crop,
+                        Size = new Size(256, 256)
+                    }));
+
+                    await image.SaveAsJpegAsync(thumbPath!, new JpegEncoder { Quality = 70 });
+                    _logger.LogDebug("[PictureService] Thumbnail criado e salvo: {ThumbPath}", thumbPath);
+
+                    filesSavedToDisk = true;
                 }
+                else
+                {
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+                        filesSavedToDisk = true;
+                        _logger.LogDebug("[PictureService] Arquivo salvo no disco com sucesso: {FilePath}", filePath);
+                    }
+                }
+
+                var finalFileInfo = new FileInfo(filePath);
 
                 var picture = new Picture
                 {
                     FileName = fileName,
                     StoragePath = filePath,
-                    MimeType = file.ContentType,
-                    Size = (int)file.Length
+                    MimeType = isImage ? "image/jpeg" : file.ContentType,
+                    Size = (int)finalFileInfo.Length
                 };
 
                 _pictureRepository.Insert(picture);
-
                 await SaveChangesAsync();
                 scope.Complete();
 
-                _logger.LogInformation("[PictureService] Imagem {FileName} salva no banco de dados e transação comitada com sucesso.", fileName);
+                _logger.LogInformation("[PictureService] Imagem {FileName} salva no banco e transação comitada.", fileName);
 
                 return picture;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[PictureService] Erro durante a criação da imagem {FileName}. Iniciando Rollback.", fileName);
-                _logger.LogDebug("[PictureService] Rollback do banco de dados concluído para a imagem {FileName}.", fileName);
 
-                if (fileSavedToDisk && File.Exists(filePath))
+                if (filesSavedToDisk)
                 {
-                    File.Delete(filePath);
-                    _logger.LogInformation("[PictureService] Arquivo residual removido do disco após erro: {FilePath}", filePath);
+                    if (File.Exists(filePath))
+                    {
+                        File.Delete(filePath);
+                        _logger.LogInformation("[PictureService] Arquivo principal residual removido do disco: {FilePath}", filePath);
+                    }
+
+                    if (thumbPath != null && File.Exists(thumbPath))
+                    {
+                        File.Delete(thumbPath);
+                        _logger.LogInformation("[PictureService] Thumbnail residual removido do disco: {ThumbPath}", thumbPath);
+                    }
                 }
 
                 throw new Exception("Erro ao salvar imagem: " + ex.Message);
             }
         }
 
-        public async Task<(Stream? Stream, string? ContentType)> GetPictureStream(string? name)
+        public async Task<(Stream? Stream, string? ContentType)> GetPictureStream(string? name, bool isThumb)
         {
             if (string.IsNullOrWhiteSpace(name))
             {
@@ -163,8 +238,75 @@ namespace Rediter.Api.Services
                 return (null, null);
             }
 
-            var fileName = Path.GetFileName(name);
+            var originalFileName = Path.GetFileName(name);
             var folder = GetUploadsDirectory();
+            string fileName = originalFileName;
+
+            if (isThumb)
+            {
+                var extension = Path.GetExtension(originalFileName);
+                var fileWithoutExtension = Path.GetFileNameWithoutExtension(originalFileName);
+                var thumbFileName = $"{fileWithoutExtension}_thumb{extension}";
+                var thumbPath = Path.Combine(folder, thumbFileName);
+
+                if (File.Exists(thumbPath))
+                {
+                    fileName = thumbFileName;
+                }
+                else
+                {
+                    var originalPath = Path.Combine(folder, originalFileName);
+
+                    if (File.Exists(originalPath))
+                    {
+                        var fileLock = _thumbLocks.GetOrAdd(thumbPath, _ => new SemaphoreSlim(1, 1));
+
+                        await fileLock.WaitAsync();
+                        try
+                        {
+                            if (!File.Exists(thumbPath))
+                            {
+                                using var image = await Image.LoadAsync(originalPath);
+
+                                image.Mutate(x =>
+                                {
+                                    bool isLandscape = image.Width > image.Height;
+                                    bool isPortrait = image.Height > image.Width;
+                                    bool isSquare = image.Width == image.Height;
+
+                                    if (isSquare)
+                                    {
+                                        x.Resize(new ResizeOptions { Mode = ResizeMode.Crop, Size = new Size(256, 256) });
+                                    }
+                                    else if (isLandscape)
+                                    {
+                                        x.Resize(new ResizeOptions { Mode = ResizeMode.Max, Size = new Size(256, 144) });
+                                    }
+                                    else if (isPortrait)
+                                    {
+                                        x.Resize(new ResizeOptions { Mode = ResizeMode.Max, Size = new Size(144, 256) });
+                                    }
+                                });
+
+                                await image.SaveAsync(thumbPath);
+                                _logger.LogInformation("[PictureService] Thumb criada automaticamente: {Path}", thumbPath);
+                            }
+
+                            fileName = thumbFileName;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "[PictureService] Erro ao criar thumb automaticamente para {Original}", originalFileName);
+                            fileName = originalFileName; 
+                        }
+                        finally
+                        {
+                            fileLock.Release();
+                        }
+                    }
+                }
+            }
+
             var path = Path.Combine(folder, fileName);
 
             if (!File.Exists(path))
@@ -173,8 +315,7 @@ namespace Rediter.Api.Services
                 return (null, null);
             }
 
-            var extension = Path.GetExtension(fileName).ToLowerInvariant();
-            var contentType = GetContentType(extension);
+            var contentType = GetContentType(Path.GetExtension(fileName).ToLowerInvariant());
 
             var fileStream = new FileStream(
                 path,
@@ -207,17 +348,27 @@ namespace Rediter.Api.Services
 
             foreach (var pic in unusedPictures)
             {
-                var path = Path.Combine(folder, pic.FileName);
+                var mainPath = Path.Combine(folder, pic.FileName);
+                var thumbName = $"{Path.GetFileNameWithoutExtension(pic.FileName)}_thumb.jpg";
+                var thumbPath = Path.Combine(folder, thumbName);
 
                 try
                 {
-                    if (File.Exists(path))
+                    if (File.Exists(mainPath))
                     {
-                        File.Delete(path);
-                        _logger.LogDebug("[PictureService] Arquivo físico deletado: {Path}", path);
+                        File.Delete(mainPath);
+                        _logger.LogDebug("[PictureService] Arquivo físico deletado: {Path}", mainPath);
                     }
                     else
-                        _logger.LogWarning("[PictureService] O arquivo físico da imagem {FileName} não foi encontrado durante a limpeza.", pic.FileName);
+                    {
+                        _logger.LogWarning("[PictureService] Arquivo físico {FileName} não encontrado durante a limpeza.", pic.FileName);
+                    }
+
+                    if (File.Exists(thumbPath))
+                    {
+                        File.Delete(thumbPath);
+                        _logger.LogDebug("[PictureService] Thumbnail deletado: {ThumbPath}", thumbPath);
+                    }
 
                     _pictureRepository.Delete(pic);
                     markedForDeletion++;
@@ -231,7 +382,7 @@ namespace Rediter.Api.Services
             if (markedForDeletion > 0)
                 await SaveChangesAsync();
 
-            _logger.LogInformation("[PictureService] Limpeza de imagens concluída. Total de imagens removidas do banco: {DeletedCount}", markedForDeletion);
+            _logger.LogInformation("[PictureService] Limpeza concluída. Total de imagens (e thumbs) removidas: {DeletedCount}", markedForDeletion);
         }
 
         private string GetContentType(string? extension)
@@ -248,7 +399,7 @@ namespace Rediter.Api.Services
 
                 if (_contentTypeProvider.TryGetContentType($"file{extension}", out var contentType))
                     return contentType;
-                
+
                 return extension switch
                 {
                     ".jpg" or ".jpeg" => "image/jpeg",
@@ -257,19 +408,15 @@ namespace Rediter.Api.Services
                     ".webp" => "image/webp",
                     ".bmp" => "image/bmp",
                     ".svg" => "image/svg+xml",
-
                     ".mp4" => "video/mp4",
                     ".mov" => "video/quicktime",
                     ".avi" => "video/x-msvideo",
                     ".mkv" => "video/x-matroska",
-
                     ".mp3" => "audio/mpeg",
                     ".wav" => "audio/wav",
-
                     ".pdf" => "application/pdf",
                     ".json" => "application/json",
                     ".txt" => "text/plain",
-
                     _ => "application/octet-stream"
                 };
             }

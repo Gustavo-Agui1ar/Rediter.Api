@@ -21,7 +21,7 @@ namespace Rediter.Api.Controllers
         /// </summary>
         [HttpGet("{name}")]
         [ResponseCache(Duration = 2592000, Location = ResponseCacheLocation.Client)]
-        public async Task<IActionResult> GetByName([FromRoute] string name)
+        public async Task<IActionResult> GetByName([FromRoute] string name, [FromRoute] bool isThumb = true)
         {
             try
             {
@@ -32,7 +32,7 @@ namespace Rediter.Api.Controllers
                     return BadRequest(new { message = "O nome da imagem é obrigatório." });
                 }
 
-                (Stream? stream, string? contentType) = await _pictureService.GetPictureStream(name);
+                (Stream? stream, string? contentType) = await _pictureService.GetPictureStream(name, isThumb);
 
                 if (stream is null || contentType is null)
                 {

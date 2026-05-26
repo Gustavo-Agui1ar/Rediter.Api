@@ -231,5 +231,21 @@ namespace Rediter.Api.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+
+        [HttpPost("devices")]
+        public async Task<IActionResult> RegisterDevice([FromBody] DeviceDTO deviceDto)
+        {
+            try
+            {
+                if (!TryGetCurrentUserId(out Guid userId))
+                    return Unauthorized(new { message = "Session Expired or Invalid User ID." });
+                await _userService.RegisterDeviceAsync(userId, deviceDto);
+                return Ok(new { message = "Device registered successfully" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"An error occurred while registering the device: {ex.Message}" });
+            }
+        }
     }
 }

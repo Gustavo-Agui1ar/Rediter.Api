@@ -1,10 +1,13 @@
-﻿using System.Text;
-using System.Text.Json;
+﻿using FirebaseAdmin.Messaging;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using Rediter.Api.Data;
 using Rediter.Api.Hubs;
 using Rediter.Api.Models;
+using System.Text;
+using System.Text.Json;
 
 namespace Rediter.Api.Infrastructure.Notification
 {
@@ -13,15 +16,19 @@ namespace Rediter.Api.Infrastructure.Notification
         private readonly IConnection _rabbitConnection;
         private readonly IHubContext<NotificationHub> _hubContext;
         private readonly ILogger<NotificationListener> _logger;
+        // 1. Substitua o DataContext pelo IServiceScopeFactory
+        private readonly IServiceScopeFactory _scopeFactory;
         private readonly string _queueName = "notificacoes_fila";
 
         public NotificationListener(
             IConnection rabbitConnection,
             IHubContext<NotificationHub> hubContext,
+            IServiceScopeFactory scopeFactory, // <-- Aqui
             ILogger<NotificationListener> logger)
         {
             _rabbitConnection = rabbitConnection;
             _hubContext = hubContext;
+            _scopeFactory = scopeFactory; // <-- E aqui
             _logger = logger;
         }
 
@@ -57,6 +64,26 @@ namespace Rediter.Api.Infrastructure.Notification
 
                             await _hubContext.Clients.Group($"user:{payload.ReceiverUserId}")
                                                      .SendAsync("ReceiveNotification", payload, cancellationToken: stoppingToken);
+
+                            string? deviceToken = null;
+                            using (var scope = _scopeFactory.CreateScope())
+                            {
+                                var context = scope.ServiceProvider.GetRequiredService<DataContext>();
+
+                                deviceToken = await context.Set<User>()
+                                    .Where(u => u.Id == payload.ReceiverUserId)
+                                    .Select(u => u.DeviceToken)
+                                    .FirstOrDefaultAsync(stoppingToken); 
+                            }
+
+                            if (string.IsNullOrEmpty(deviceToken))
+                            {
+                                _logger.LogWarning("[RabbitMQ] Notificação para o usuário {UserId} não possui DeviceToken. Ignorando envio de push.", payload.ReceiverUserId);
+                            }
+                            else
+                            {
+                                await EnviarPushNotificationFirebaseAsync(deviceToken, payload, stoppingToken);
+                            }
                         }
 
                         await channel.BasicAckAsync(deliveryTag: ea.DeliveryTag,
@@ -66,8 +93,7 @@ namespace Rediter.Api.Infrastructure.Notification
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "[RabbitMQ] Erro ao processar e despachar a mensagem.");
-
-                        // await channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: true, cancellationToken: stoppingToken);
+                        await channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: true, cancellationToken: stoppingToken);
                     }
                 };
 
@@ -81,6 +107,34 @@ namespace Rediter.Api.Infrastructure.Notification
             catch (Exception ex)
             {
                 _logger.LogCritical(ex, "[RabbitMQ] Falha fatal no Worker de Notificações.");
+            }
+        }
+
+        private async Task EnviarPushNotificationFirebaseAsync(string deviceToken, NotificationDTO payload, CancellationToken stoppingToken)
+        {
+            try
+            {
+                var message = new Message()
+                {
+                    Token = deviceToken,
+                    Notification = new FirebaseAdmin.Messaging.Notification()
+                    {
+                        Title = "Rediter",
+                        Body = "Você tem uma nova notificação!"
+                    },
+                    Data = new Dictionary<string, string>()
+                    {
+                        { "notificationId", payload.Id.ToString() },
+                        { "type", "new_interaction" }
+                    }
+                };
+
+                string response = await FirebaseMessaging.DefaultInstance.SendAsync(message, stoppingToken);
+                _logger.LogInformation("[Firebase] Push enviado com sucesso. MessageID: {Response}", response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Firebase] Erro ao enviar Push Notification para o token {Token}", deviceToken);
             }
         }
     }

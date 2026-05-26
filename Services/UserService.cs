@@ -142,5 +142,23 @@ namespace Rediter.Api.Services
         {
             return await _UserRepository.SearchUsers(query, lastCreatedAt, lastId, pageSize, userId);
         }
+
+        public async Task RegisterDeviceAsync(Guid userId, DeviceDTO dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.deviceToken))
+                return;
+
+            User? user = await _UserRepository.GetByUuid(userId);
+
+            if (user == null)
+                return;
+
+            if (user.DeviceToken == dto.deviceToken)
+                return;
+
+            user.DeviceToken = dto.deviceToken;
+
+            await SaveChangesAsync();
+        }
     }
 }

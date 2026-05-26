@@ -367,3 +367,6 @@ wwwroot/uploads
 
 #deploy
 deploy.ps1
+
+#private key firebase
+firebase/*.json

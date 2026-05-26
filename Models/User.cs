@@ -20,6 +20,8 @@ public class User : Entity
     public virtual DateTime? RefreshTokenExpiration { get; set; }
     public virtual string? Description { get; set; }
 
+    public virtual string? DeviceToken { get; set; } 
+
     public virtual int FollowersCount { get; set; } = 0;
     public virtual int FollowingCount { get; set; } = 0;
 

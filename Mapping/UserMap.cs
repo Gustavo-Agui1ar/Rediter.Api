@@ -25,6 +25,8 @@ namespace Rediter.Api.Mappings
             builder.Property(x => x.FollowersCount).HasColumnName("FOLLOWERS_COUNT").HasDefaultValue(0);
             builder.Property(x => x.FollowingCount).HasColumnName("FOLLOWING_COUNT").HasDefaultValue(0);
 
+            builder.Property(x => x.DeviceToken).HasColumnName("DEVICE_TOKEN").HasMaxLength(255);
+
             builder.Property(x => x.ProfilePictureId).HasColumnName("PROFILE_PICTURE_ID");
             builder.HasOne(x => x.ProfilePicture)
                 .WithMany()
