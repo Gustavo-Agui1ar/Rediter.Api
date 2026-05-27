@@ -1,5 +1,5 @@
 ﻿using Rediter.Api.Data;
-using Rediter.Api.Models;
+using Rediter.Api.Models.Post;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Rediter.Api.Repositories

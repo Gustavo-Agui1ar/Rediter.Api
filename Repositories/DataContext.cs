@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ValueGeneration;
 using Rediter.Api.Models;
+using Rediter.Api.Models.Post;
 using System.Reflection;
 
 namespace Rediter.Api.Data;

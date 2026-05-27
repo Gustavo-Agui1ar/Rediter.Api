@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Rediter.Api.Data.Mappings;
 using Rediter.Api.Models;
 
-namespace Rediter.Api.Mappings
+namespace Rediter.Api.Mapping.Post
 {
     public class UserPostLikeMap : EntityMap<UserPostLike>
     {

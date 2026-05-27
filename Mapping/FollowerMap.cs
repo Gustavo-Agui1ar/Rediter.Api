@@ -1,35 +1,53 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Rediter.Api.Models;
+﻿//using Microsoft.EntityFrameworkCore;
+//using Microsoft.EntityFrameworkCore.Metadata.Builders;
+//using Rediter.Api.Models.Chat;
 
-namespace Rediter.Api.Data.Mappings
-{
-    public class UserFollowerMap : EntityMap<UserFollower>
-    {
-        public override void Configure(EntityTypeBuilder<UserFollower> builder)
-        {
-            base.Configure(builder);
+//namespace Rediter.Api.Data.Mappings
+//{
+//    public class MessageMap : EntityMap<Message>
+//    {
+//        public override void Configure(EntityTypeBuilder<Message> builder)
+//        {
+//            base.Configure(builder);
 
-            builder.ToTable("user_followers");
+//            builder.ToTable("messages");
 
-            builder.HasIndex(x => new { x.FollowerId, x.FollowingId })
-                   .IsUnique();
+//            builder.Property(x => x.ChatId)
+//                .HasColumnName("chat_id");
 
-            builder.Property(x => x.FollowerId)
-                .HasColumnName("follower_id");
+//            builder.Property(x => x.SenderId)
+//                .HasColumnName("sender_id");
 
-            builder.Property(x => x.FollowingId)
-                .HasColumnName("following_id");
+//            builder.Property(x => x.Content)
+//                .HasColumnName("content")
+//                .HasMaxLength(4000)
+//                .IsRequired();
 
-            builder.HasOne(x => x.Follower)
-                .WithMany(u => u.Following)
-                .HasForeignKey(x => x.FollowerId)
-                .OnDelete(DeleteBehavior.Restrict);
+//            builder.Property(x => x.CreatedAt)
+//                .HasColumnName("created_at");
 
-            builder.HasOne(x => x.Following)
-                .WithMany(u => u.Followers)
-                .HasForeignKey(x => x.FollowingId)
-                .OnDelete(DeleteBehavior.Restrict);
-        }
-    }
-}
+//            builder.Property(x => x.EditedAt)
+//                .HasColumnName("edited_at");
+
+//            builder.Property(x => x.ReadAt)
+//                .HasColumnName("read_at");
+
+//            builder.Property(x => x.DeletedAt)
+//                .HasColumnName("deleted_at");
+
+//            builder.HasIndex(x => x.ChatId);
+
+//            builder.HasIndex(x => x.CreatedAt);
+
+//            builder.HasOne(x => x.Chat)
+//                .WithMany(x => x.Messages)
+//                .HasForeignKey(x => x.ChatId)
+//                .OnDelete(DeleteBehavior.Cascade);
+
+//            builder.HasOne(x => x.Sender)
+//                .WithMany(x => x.MessagesSent)
+//                .HasForeignKey(x => x.SenderId)
+//                .OnDelete(DeleteBehavior.Restrict);
+//        }
+//    }
+//}

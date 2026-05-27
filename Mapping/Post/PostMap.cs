@@ -1,12 +1,13 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Rediter.Api.Models;
+using Rediter.Api.Data.Mappings;
+using Rediter.Api.Models.Post;
 
-namespace Rediter.Api.Data.Mappings
+namespace Rediter.Api.Mapping.Post
 {
-    public class PostConfiguration : EntityMap<Post>
+    public class PostConfiguration : EntityMap<Models.Post.Post>
     {
-        public override void Configure(EntityTypeBuilder<Post> builder)
+        public override void Configure(EntityTypeBuilder<Models.Post.Post> builder)
         {
             base.Configure(builder);
 

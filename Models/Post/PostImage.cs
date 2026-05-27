@@ -1,6 +1,6 @@
 ﻿using Rediter.Api.Interfaces;
 
-namespace Rediter.Api.Models;
+namespace Rediter.Api.Models.Post;
 
 public class PostImage : Entity
 {

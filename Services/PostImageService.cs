@@ -1,4 +1,4 @@
-﻿using Rediter.Api.Models;
+﻿using Rediter.Api.Models.Post;
 using Rediter.Api.Repositories;
 using Rediter.Api.Services.UtilitariesServices;
 

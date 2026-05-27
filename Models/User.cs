@@ -31,5 +31,7 @@ public class User : Entity
     public virtual ICollection<UserBlock> BlockedUsers { get; set; } = new List<UserBlock>();
     public virtual ICollection<UserBlock> BlockedBy { get; set; } = new List<UserBlock>();
 
+    public virtual ICollection<Chat.ChatParticipant> Chats { get; set; } = new List<Chat.ChatParticipant>();
+
     public User() { }
 }

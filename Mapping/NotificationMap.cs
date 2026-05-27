@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Rediter.Api.Models;
+using Rediter.Api.Models.Post;
 
 namespace Rediter.Api.Data.Mappings
 {

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MiNET.Blocks;
 using Rediter.Api.Data;
 using Rediter.Api.DTOs;
-using Rediter.Api.Models;
+using Rediter.Api.Models.Post;
 
 namespace Rediter.Api.Repositories
 {

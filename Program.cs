@@ -1,3 +1,5 @@
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -10,9 +12,9 @@ using Rediter.Api.Infrastructure.Notification;
 using Rediter.Api.Repositories;
 using Rediter.Api.Services;
 using Rediter.Api.Services.Dispatchers;
+using System.Diagnostics;
 using System.Text;
-using FirebaseAdmin;
-using Google.Apis.Auth.OAuth2;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -228,6 +230,12 @@ builder.Services
     });
 
 Console.WriteLine("[JWT] Autenticação configurada.");
+
+#endregion
+
+#region Ngrok
+
+builder.Services.AddHostedService<NgrokHostedService>();
 
 #endregion
 

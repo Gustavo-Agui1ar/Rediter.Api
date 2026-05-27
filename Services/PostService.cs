@@ -2,6 +2,7 @@
 using Rediter.Api.DTOs;
 using Rediter.Api.Interfaces;
 using Rediter.Api.Models;
+using Rediter.Api.Models.Post;
 using Rediter.Api.Repositories;
 using Rediter.Api.Services.UtilitariesServices;
 using System.Diagnostics;

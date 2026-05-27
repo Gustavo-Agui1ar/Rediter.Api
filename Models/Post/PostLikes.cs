@@ -1,5 +1,6 @@
 ﻿using Rediter.Api.Infrastructure;
 using Rediter.Api.Models;
+using Rediter.Api.Models.Post;
 
 public class UserPostLike : Entity 
 {

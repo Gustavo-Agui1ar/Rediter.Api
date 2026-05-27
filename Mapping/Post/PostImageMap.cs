@@ -1,9 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Rediter.Api.Data.Mappings;
-using Rediter.Api.Models;
+using Rediter.Api.Models.Post;
 
-namespace Rediter.Api.Mappings;
+namespace Rediter.Api.Mapping.Post;
 
 public class PostImageMap : EntityMap<PostImage>
 {
