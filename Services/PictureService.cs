@@ -7,6 +7,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 
 namespace Rediter.Api.Services
 {
@@ -37,15 +38,9 @@ namespace Rediter.Api.Services
             string? folder;
 
             if (OperatingSystem.IsWindows())
-            {
                 folder = _configuration["UploadSettings:StoragePathWindows"];
-                _logger.LogDebug("[PictureService] Sistema operacional Windows detectado. Caminho configurado: {Folder}", folder);
-            }
             else
-            {
                 folder = _configuration["UploadSettings:StoragePathLinux"];
-                _logger.LogDebug("[PictureService] Sistema operacional não-Windows detectado. Caminho configurado: {Folder}", folder);
-            }
 
             if (string.IsNullOrWhiteSpace(folder))
             {
@@ -231,87 +226,29 @@ namespace Rediter.Api.Services
         public async Task<(Stream? Stream, string? ContentType)> GetPictureStream(string? name, bool isThumb)
         {
             if (string.IsNullOrWhiteSpace(name))
-            {
-                _logger.LogDebug("[PictureService] GetPictureStream chamado com nome nulo ou vazio.");
                 return (null, null);
-            }
 
             var originalFileName = Path.GetFileName(name);
             var folder = GetUploadsDirectory();
+
             string fileName = originalFileName;
 
             if (isThumb)
             {
                 var extension = Path.GetExtension(originalFileName);
                 var fileWithoutExtension = Path.GetFileNameWithoutExtension(originalFileName);
+
                 var thumbFileName = $"{fileWithoutExtension}_thumb{extension}";
                 var thumbPath = Path.Combine(folder, thumbFileName);
 
                 if (File.Exists(thumbPath))
-                {
                     fileName = thumbFileName;
-                }
-                else
-                {
-                    var originalPath = Path.Combine(folder, originalFileName);
-
-                    if (File.Exists(originalPath))
-                    {
-                        var fileLock = _thumbLocks.GetOrAdd(thumbPath, _ => new SemaphoreSlim(1, 1));
-
-                        await fileLock.WaitAsync();
-                        try
-                        {
-                            if (!File.Exists(thumbPath))
-                            {
-                                using var image = await Image.LoadAsync(originalPath);
-
-                                image.Mutate(x =>
-                                {
-                                    bool isLandscape = image.Width > image.Height;
-                                    bool isPortrait = image.Height > image.Width;
-                                    bool isSquare = image.Width == image.Height;
-
-                                    if (isSquare)
-                                    {
-                                        x.Resize(new ResizeOptions { Mode = ResizeMode.Crop, Size = new Size(256, 256) });
-                                    }
-                                    else if (isLandscape)
-                                    {
-                                        x.Resize(new ResizeOptions { Mode = ResizeMode.Max, Size = new Size(256, 144) });
-                                    }
-                                    else if (isPortrait)
-                                    {
-                                        x.Resize(new ResizeOptions { Mode = ResizeMode.Max, Size = new Size(144, 256) });
-                                    }
-                                });
-
-                                await image.SaveAsync(thumbPath);
-                                _logger.LogInformation("[PictureService] Thumb criada automaticamente: {Path}", thumbPath);
-                            }
-
-                            fileName = thumbFileName;
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "[PictureService] Erro ao criar thumb automaticamente para {Original}", originalFileName);
-                            fileName = originalFileName; 
-                        }
-                        finally
-                        {
-                            fileLock.Release();
-                        }
-                    }
-                }
             }
 
             var path = Path.Combine(folder, fileName);
 
             if (!File.Exists(path))
-            {
-                _logger.LogWarning("[PictureService] Imagem não encontrada no disco ao tentar carregar o stream: {Path}", path);
                 return (null, null);
-            }
 
             var contentType = GetContentType(Path.GetExtension(fileName).ToLowerInvariant());
 
@@ -324,11 +261,14 @@ namespace Rediter.Api.Services
                 useAsync: true
             );
 
-            _logger.LogDebug("[PictureService] Stream criado com sucesso para o arquivo: {Path} ({ContentType})", path, contentType);
+            _logger.LogInformation(
+                "[PictureService] Stream criado com sucesso para o arquivo: {Path} ({ContentType})",
+                path,
+                contentType
+            );
 
             return (fileStream, contentType);
         }
-
         public async Task CleanUnusedImages()
         {
             _logger.LogInformation("[PictureService] Iniciando rotina de limpeza de imagens não utilizadas.");
