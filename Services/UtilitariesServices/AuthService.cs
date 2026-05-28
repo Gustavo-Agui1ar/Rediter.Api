@@ -1,6 +1,7 @@
 ﻿using Google.Apis.Auth;
-using Rediter.Api.DTOs;
-using Rediter.Api.Models;
+using Rediter.Api.DTOs.Auth;
+using Rediter.Api.Models.Users;
+using Rediter.Api.Services.Users;
 
 namespace Rediter.Api.Services.UtilitariesServices
 {
@@ -113,7 +114,7 @@ namespace Rediter.Api.Services.UtilitariesServices
 
         private async Task<TokenRequestDTO> GenerateToken(User user, bool addDays = false)
         {
-            TokenRequestDTO dto = _tokenService.GenerateToken(user);
+            TokenRequestDTO dto = _tokenService.GenerateToken(user!);
 
             user.RefreshToken = dto.RefreshToken;
 

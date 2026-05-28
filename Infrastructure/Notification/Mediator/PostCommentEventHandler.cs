@@ -1,5 +1,4 @@
 ﻿using MediatR;
-using Microsoft.EntityFrameworkCore;
 using Rediter.Api.Data;
 using Rediter.Api.Infrastructure;
 using Rediter.Api.Models;

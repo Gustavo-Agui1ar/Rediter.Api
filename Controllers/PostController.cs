@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Rediter.Api.DTOs;
-using Rediter.Api.Services;
+using Rediter.Api.DTOs.Posts;
+using Rediter.Api.Services.Posts;
 using System.Diagnostics;
 using System.Security.Claims;
 

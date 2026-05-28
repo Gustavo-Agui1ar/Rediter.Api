@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Rediter.Api.DTOs;
+using Rediter.Api.DTOs.Auth;
+using Rediter.Api.DTOs.Users;
 using Rediter.Api.Services.UtilitariesServices;
 
 namespace Rediter.Api.Controllers

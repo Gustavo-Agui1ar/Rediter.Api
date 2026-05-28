@@ -59,8 +59,8 @@ public class NgrokHostedService : IHostedService
     {
         try
         {
-            var ngrokPath = _configuration["NGrok:ExecutablePath"] ?? "ngrok";
-            var appPort = _configuration["NGrok:TargetPort"] ?? "6969";
+            var ngrokPath = _configuration["NGrok:ExecutablePath"]!;
+            var appPort = _configuration["NGrok:TargetPort"]!;
 
             var processStartInfo = new ProcessStartInfo
             {

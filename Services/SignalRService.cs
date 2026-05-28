@@ -1,6 +1,6 @@
 ﻿using RabbitMQ.Client;
 using Rediter.Api.Models;
-using Rediter.Api.Repositories;
+using Rediter.Api.Repositories.Users;
 using System.Text;
 using System.Text.Json;
 

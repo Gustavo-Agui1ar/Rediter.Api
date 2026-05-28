@@ -4,7 +4,7 @@ using Rediter.Api.Models;
 
 namespace Rediter.Api.Repositories
 {
-    public class PictureRepository : BaseRepository<Models.Picture>
+    public class PictureRepository : EntityRepository<Models.Picture>
     {
         public PictureRepository(DataContext data) : base(data)
         {

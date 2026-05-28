@@ -1,6 +1,6 @@
 ﻿using Microsoft.IdentityModel.Tokens;
-using Rediter.Api.DTOs;
-using Rediter.Api.Models;
+using Rediter.Api.DTOs.Auth;
+using Rediter.Api.Models.Users;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;

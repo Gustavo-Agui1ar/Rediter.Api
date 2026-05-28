@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Hosting;
-using Rediter.Api.Services;
+﻿using Rediter.Api.Services;
 
 
 namespace Rediter.Api.Infrastructure

@@ -1,6 +1,4 @@
-﻿using Rediter.Api.Interfaces;
-
-namespace Rediter.Api.Models;
+﻿namespace Rediter.Api.Models;
 
 public class Picture : Entity
 {

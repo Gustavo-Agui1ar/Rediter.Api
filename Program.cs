@@ -10,11 +10,10 @@ using Rediter.Api.Hubs;
 using Rediter.Api.Infrastructure;
 using Rediter.Api.Infrastructure.Notification;
 using Rediter.Api.Repositories;
-using Rediter.Api.Services;
+using Rediter.Api.Repositories.Users;
 using Rediter.Api.Services.Dispatchers;
-using System.Diagnostics;
+using Rediter.Api.Services.Users;
 using System.Text;
-using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -147,7 +146,7 @@ builder.Services.Scan(scan => scan
             type.BaseType != null &&
             type.BaseType.IsGenericType &&
             type.BaseType.GetGenericTypeDefinition() ==
-                typeof(BaseRepository<>)))
+                typeof(EntityRepository<>)))
     .AsSelf()
     .WithScopedLifetime());
 

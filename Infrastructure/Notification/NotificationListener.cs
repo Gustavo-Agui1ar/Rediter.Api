@@ -6,6 +6,7 @@ using RabbitMQ.Client.Events;
 using Rediter.Api.Data;
 using Rediter.Api.Hubs;
 using Rediter.Api.Models;
+using Rediter.Api.Models.Users;
 using System.Text;
 using System.Text.Json;
 
@@ -16,19 +17,18 @@ namespace Rediter.Api.Infrastructure.Notification
         private readonly IConnection _rabbitConnection;
         private readonly IHubContext<NotificationHub> _hubContext;
         private readonly ILogger<NotificationListener> _logger;
-        // 1. Substitua o DataContext pelo IServiceScopeFactory
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly string _queueName = "notificacoes_fila";
 
         public NotificationListener(
             IConnection rabbitConnection,
             IHubContext<NotificationHub> hubContext,
-            IServiceScopeFactory scopeFactory, // <-- Aqui
+            IServiceScopeFactory scopeFactory, 
             ILogger<NotificationListener> logger)
         {
             _rabbitConnection = rabbitConnection;
             _hubContext = hubContext;
-            _scopeFactory = scopeFactory; // <-- E aqui
+            _scopeFactory = scopeFactory; 
             _logger = logger;
         }
 

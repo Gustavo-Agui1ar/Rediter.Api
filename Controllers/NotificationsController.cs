@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Rediter.Api.DTOs;
-using Rediter.Api.Services; // Ajuste conforme o namespace do seu NotificationService
+using Rediter.Api.Services.Notifications;
 using System.Security.Claims;
 
 namespace Rediter.Api.Controllers

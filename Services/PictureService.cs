@@ -7,8 +7,6 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using System.Collections.Concurrent;
-using System.Threading;
-
 
 namespace Rediter.Api.Services
 {

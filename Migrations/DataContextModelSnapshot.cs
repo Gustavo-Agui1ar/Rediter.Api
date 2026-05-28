@@ -22,7 +22,7 @@ namespace Rediter.Api.Migrations
 
             OracleModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("Rediter.Api.Models.Chat.Chat", b =>
+            modelBuilder.Entity("Rediter.Api.Models.Chats.Chat", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -46,12 +46,18 @@ namespace Rediter.Api.Migrations
                         .HasColumnType("NVARCHAR2(150)")
                         .HasColumnName("TITLE");
 
+                    b.Property<DateTime>("UpdateAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TIMESTAMP(7)")
+                        .HasColumnName("UPDATE_AT")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
                     b.HasKey("Id");
 
                     b.ToTable("CHATS", (string)null);
                 });
 
-            modelBuilder.Entity("Rediter.Api.Models.Chat.ChatParticipant", b =>
+            modelBuilder.Entity("Rediter.Api.Models.Chats.ChatParticipant", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -91,7 +97,7 @@ namespace Rediter.Api.Migrations
                     b.ToTable("CHAT_PARTICIPANTS", (string)null);
                 });
 
-            modelBuilder.Entity("Rediter.Api.Models.Chat.Message", b =>
+            modelBuilder.Entity("Rediter.Api.Models.Chats.Message", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -230,7 +236,7 @@ namespace Rediter.Api.Migrations
                     b.ToTable("PICTURES", (string)null);
                 });
 
-            modelBuilder.Entity("Rediter.Api.Models.Post.Post", b =>
+            modelBuilder.Entity("Rediter.Api.Models.Posts.Post", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -295,7 +301,7 @@ namespace Rediter.Api.Migrations
                     b.ToTable("POSTS", (string)null);
                 });
 
-            modelBuilder.Entity("Rediter.Api.Models.Post.PostImage", b =>
+            modelBuilder.Entity("Rediter.Api.Models.Posts.PostImage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -333,7 +339,40 @@ namespace Rediter.Api.Migrations
                     b.ToTable("POST_IMAGES", (string)null);
                 });
 
-            modelBuilder.Entity("Rediter.Api.Models.User", b =>
+            modelBuilder.Entity("Rediter.Api.Models.Users.Follower", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("RAW(16)")
+                        .HasColumnName("ID");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TIMESTAMP(7)")
+                        .HasColumnName("CREATED_AT")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("FollowerId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("RAW(16)")
+                        .HasColumnName("FOLLOWER_ID");
+
+                    b.Property<Guid>("FollowingId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("RAW(16)")
+                        .HasColumnName("FOLLOWING_ID");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FollowingId");
+
+                    b.HasIndex("FollowerId", "FollowingId")
+                        .IsUnique();
+
+                    b.ToTable("USER_FOLLOWERS", (string)null);
+                });
+
+            modelBuilder.Entity("Rediter.Api.Models.Users.User", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -428,7 +467,7 @@ namespace Rediter.Api.Migrations
                     b.ToTable("USERS", (string)null);
                 });
 
-            modelBuilder.Entity("Rediter.Api.Models.UserBlock", b =>
+            modelBuilder.Entity("Rediter.Api.Models.Users.UserBlock", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -459,36 +498,6 @@ namespace Rediter.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("USER_BLOCKS", (string)null);
-                });
-
-            modelBuilder.Entity("Rediter.Api.Models.UserFollower", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("RAW(16)")
-                        .HasColumnName("ID");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TIMESTAMP(7)")
-                        .HasColumnName("CREATEDAT");
-
-                    b.Property<Guid>("FollowerId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("RAW(16)")
-                        .HasColumnName("FOLLOWERID");
-
-                    b.Property<Guid>("FollowingId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("RAW(16)")
-                        .HasColumnName("FOLLOWINGID");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FollowerId");
-
-                    b.HasIndex("FollowingId");
-
-                    b.ToTable("USERFOLLOWERS");
                 });
 
             modelBuilder.Entity("UserPostLike", b =>
@@ -524,15 +533,15 @@ namespace Rediter.Api.Migrations
                     b.ToTable("USER_POST_LIKES", (string)null);
                 });
 
-            modelBuilder.Entity("Rediter.Api.Models.Chat.ChatParticipant", b =>
+            modelBuilder.Entity("Rediter.Api.Models.Chats.ChatParticipant", b =>
                 {
-                    b.HasOne("Rediter.Api.Models.Chat.Chat", "Chat")
+                    b.HasOne("Rediter.Api.Models.Chats.Chat", "Chat")
                         .WithMany("Participants")
                         .HasForeignKey("ChatId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Rediter.Api.Models.User", "User")
+                    b.HasOne("Rediter.Api.Models.Users.User", "User")
                         .WithMany("Chats")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -543,15 +552,15 @@ namespace Rediter.Api.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Rediter.Api.Models.Chat.Message", b =>
+            modelBuilder.Entity("Rediter.Api.Models.Chats.Message", b =>
                 {
-                    b.HasOne("Rediter.Api.Models.Chat.Chat", "Chat")
+                    b.HasOne("Rediter.Api.Models.Chats.Chat", "Chat")
                         .WithMany("Messages")
                         .HasForeignKey("ChatId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Rediter.Api.Models.User", "Sender")
+                    b.HasOne("Rediter.Api.Models.Users.User", "Sender")
                         .WithMany()
                         .HasForeignKey("SenderId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -564,33 +573,33 @@ namespace Rediter.Api.Migrations
 
             modelBuilder.Entity("Rediter.Api.Models.Notification", b =>
                 {
-                    b.HasOne("Rediter.Api.Models.Post.Post", null)
+                    b.HasOne("Rediter.Api.Models.Posts.Post", null)
                         .WithMany()
                         .HasForeignKey("PostId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Rediter.Api.Models.User", null)
+                    b.HasOne("Rediter.Api.Models.Users.User", null)
                         .WithMany()
                         .HasForeignKey("RecipientUserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Rediter.Api.Models.User", null)
+                    b.HasOne("Rediter.Api.Models.Users.User", null)
                         .WithMany()
                         .HasForeignKey("SenderUserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Rediter.Api.Models.Post.Post", b =>
+            modelBuilder.Entity("Rediter.Api.Models.Posts.Post", b =>
                 {
-                    b.HasOne("Rediter.Api.Models.Post.Post", "ParentPost")
+                    b.HasOne("Rediter.Api.Models.Posts.Post", "ParentPost")
                         .WithMany("Replies")
                         .HasForeignKey("ParentPostId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("Rediter.Api.Models.User", "User")
+                    b.HasOne("Rediter.Api.Models.Users.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -601,7 +610,7 @@ namespace Rediter.Api.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Rediter.Api.Models.Post.PostImage", b =>
+            modelBuilder.Entity("Rediter.Api.Models.Posts.PostImage", b =>
                 {
                     b.HasOne("Rediter.Api.Models.Picture", "Picture")
                         .WithMany()
@@ -609,7 +618,7 @@ namespace Rediter.Api.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Rediter.Api.Models.Post.Post", "Post")
+                    b.HasOne("Rediter.Api.Models.Posts.Post", "Post")
                         .WithMany("PostImages")
                         .HasForeignKey("PostId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -620,7 +629,26 @@ namespace Rediter.Api.Migrations
                     b.Navigation("Post");
                 });
 
-            modelBuilder.Entity("Rediter.Api.Models.User", b =>
+            modelBuilder.Entity("Rediter.Api.Models.Users.Follower", b =>
+                {
+                    b.HasOne("Rediter.Api.Models.Users.User", "UserFollower")
+                        .WithMany("Following")
+                        .HasForeignKey("FollowerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Rediter.Api.Models.Users.User", "UserFollowing")
+                        .WithMany("Followers")
+                        .HasForeignKey("FollowingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("UserFollower");
+
+                    b.Navigation("UserFollowing");
+                });
+
+            modelBuilder.Entity("Rediter.Api.Models.Users.User", b =>
                 {
                     b.HasOne("Rediter.Api.Models.Picture", "ProfileCover")
                         .WithMany()
@@ -637,15 +665,15 @@ namespace Rediter.Api.Migrations
                     b.Navigation("ProfilePicture");
                 });
 
-            modelBuilder.Entity("Rediter.Api.Models.UserBlock", b =>
+            modelBuilder.Entity("Rediter.Api.Models.Users.UserBlock", b =>
                 {
-                    b.HasOne("Rediter.Api.Models.User", "Blocked")
+                    b.HasOne("Rediter.Api.Models.Users.User", "Blocked")
                         .WithMany("BlockedBy")
                         .HasForeignKey("BlockedId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Rediter.Api.Models.User", "Blocker")
+                    b.HasOne("Rediter.Api.Models.Users.User", "Blocker")
                         .WithMany("BlockedUsers")
                         .HasForeignKey("BlockerId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -656,34 +684,15 @@ namespace Rediter.Api.Migrations
                     b.Navigation("Blocker");
                 });
 
-            modelBuilder.Entity("Rediter.Api.Models.UserFollower", b =>
-                {
-                    b.HasOne("Rediter.Api.Models.User", "Follower")
-                        .WithMany("Following")
-                        .HasForeignKey("FollowerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Rediter.Api.Models.User", "Following")
-                        .WithMany("Followers")
-                        .HasForeignKey("FollowingId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Follower");
-
-                    b.Navigation("Following");
-                });
-
             modelBuilder.Entity("UserPostLike", b =>
                 {
-                    b.HasOne("Rediter.Api.Models.Post.Post", "Post")
+                    b.HasOne("Rediter.Api.Models.Posts.Post", "Post")
                         .WithMany("Likes")
                         .HasForeignKey("PostId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Rediter.Api.Models.User", "User")
+                    b.HasOne("Rediter.Api.Models.Users.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -694,14 +703,14 @@ namespace Rediter.Api.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Rediter.Api.Models.Chat.Chat", b =>
+            modelBuilder.Entity("Rediter.Api.Models.Chats.Chat", b =>
                 {
                     b.Navigation("Messages");
 
                     b.Navigation("Participants");
                 });
 
-            modelBuilder.Entity("Rediter.Api.Models.Post.Post", b =>
+            modelBuilder.Entity("Rediter.Api.Models.Posts.Post", b =>
                 {
                     b.Navigation("Likes");
 
@@ -710,7 +719,7 @@ namespace Rediter.Api.Migrations
                     b.Navigation("Replies");
                 });
 
-            modelBuilder.Entity("Rediter.Api.Models.User", b =>
+            modelBuilder.Entity("Rediter.Api.Models.Users.User", b =>
                 {
                     b.Navigation("BlockedBy");
 

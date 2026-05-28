@@ -1,5 +1,4 @@
-﻿using Rediter.Api.Interfaces;
-using Rediter.Api.Models;
+﻿using Rediter.Api.Models;
 
 public interface INotificationDispatcher
 {
