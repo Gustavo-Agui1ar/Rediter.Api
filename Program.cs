@@ -8,7 +8,7 @@ using RabbitMQ.Client;
 using Rediter.Api.Data;
 using Rediter.Api.Hubs;
 using Rediter.Api.Infrastructure;
-using Rediter.Api.Infrastructure.Notification;
+using Rediter.Api.Infrastructure.Notifications;
 using Rediter.Api.Repositories;
 using Rediter.Api.Repositories.Users;
 using Rediter.Api.Services.Dispatchers;
@@ -87,6 +87,7 @@ builder.Services.AddSingleton<IConnection>(rabbitConnection);
 builder.Services.AddScoped<INotificationDispatcher, RabbitMQNotificationDispatcher>();
 
 builder.Services.AddHostedService<NotificationListener>();
+builder.Services.AddHostedService<ChatMessageListener>();
 
 Console.WriteLine("[RabbitMQ] Serviços registrados.");
 

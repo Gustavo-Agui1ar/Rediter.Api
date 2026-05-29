@@ -10,7 +10,7 @@ using Rediter.Api.Models.Users;
 using System.Text;
 using System.Text.Json;
 
-namespace Rediter.Api.Infrastructure.Notification
+namespace Rediter.Api.Infrastructure.Notifications
 {
     public class NotificationListener : BackgroundService
     {

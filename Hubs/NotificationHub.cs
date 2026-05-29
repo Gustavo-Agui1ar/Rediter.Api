@@ -33,5 +33,16 @@ namespace Rediter.Api.Hubs
 
             await base.OnDisconnectedAsync(exception);
         }
+
+        public async Task JoinChatGroup(Guid chatId)
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, chatId.ToString());
+        }
+
+        public async Task SendTyping(Guid chatId, bool isTyping)
+        {
+            await Clients.GroupExcept(chatId.ToString(), Context.ConnectionId)
+                         .SendAsync("ReceiveTyping", chatId, isTyping);
+        }
     }
 }

@@ -2,6 +2,7 @@
 using Rediter.Api.Data;
 using Rediter.Api.DTOs.Users;
 using Rediter.Api.Models.Users;
+using Rediter.Api.Models.Chats;
 using System.Linq.Expressions;
 
 namespace Rediter.Api.Repositories.Users
@@ -47,13 +48,13 @@ namespace Rediter.Api.Repositories.Users
 
             IQueryable<User> usersQuery = _dbSet.AsNoTracking();
 
+            string termLower = query.ToLower();
+
             if (!string.IsNullOrWhiteSpace(query))
-            {
-                usersQuery = usersQuery.Where(u => u.Name.Contains(query));
-            }
+                usersQuery = usersQuery.Where(u => EF.Property<string>(u, "NameLower").Contains(termLower));
 
             if (currentUserId != Guid.Empty)
-            {
+            {   
                 usersQuery = usersQuery.Where(u =>
                     !u.BlockedBy.Any(b => b.BlockerId == currentUserId) &&
                     !u.BlockedUsers.Any(b => b.BlockedId == currentUserId)
@@ -120,7 +121,7 @@ namespace Rediter.Api.Repositories.Users
                 .Where(u => u.Id == targetUserId)
                 .Select(u => new UserDTO
                 {
-                    UserID = u.Id.ToString(),
+                    UserID = u.Id,
                     Name = u.Name,
                     Email = u.Email,
 
@@ -134,7 +135,13 @@ namespace Rediter.Api.Repositories.Users
                     isBlocked = u.BlockedBy.Any(b => b.BlockerId == currentUserId),
 
                     Followers = u.FollowersCount,
-                    Following = u.FollowingCount
+                    Following = u.FollowingCount,
+                    ChatId = _context.Set<Chat>()
+                                .Where(c => !c.IsGroup &&
+                                            c.Participants.Any(p => p.UserId == currentUserId) &&
+                                            c.Participants.Any(p => p.UserId == u.Id))
+                                .Select(c => (Guid?)c.Id) 
+                                .FirstOrDefault()
                 })
                 .FirstOrDefaultAsync() ?? throw new Exception("User not found.");
         }

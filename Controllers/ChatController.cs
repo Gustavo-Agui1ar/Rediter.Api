@@ -44,9 +44,14 @@ namespace Rediter.Api.Controllers
 
                 Guid chatId = await _chatService.GetOrCreateDirectChatAsync(currentUserId, receiverId);
 
-                await _chatService.AddMessageToChat(chatId, currentUserId, dto.Content);
+                MessageDTO createdMessage = await _chatService.AddMessageToChat(chatId, currentUserId, dto.Content);
 
-                return Ok(new { chatId });
+                return Ok(new
+                {
+                    chatId = chatId,
+                    messageId = createdMessage.messageId,
+                    createdAt = createdMessage.createdAt
+                });
             }
             catch (Exception ex)
             {
@@ -55,9 +60,36 @@ namespace Rediter.Api.Controllers
             }
         }
 
+        // POST: api/chats/{chatId}/messages
+        [HttpPost("{chatId:guid}/messages")]
+        public async Task<IActionResult> SendMessage([FromRoute] Guid chatId, [FromBody] NewMessageDTO dto)
+        {
+            try
+            {
+                if (!TryGetCurrentUserId(out Guid currentUserId))
+                    return Unauthorized(new { message = "Usuário não encontrado no token." });
+
+                if (string.IsNullOrWhiteSpace(dto.Content))
+                    return BadRequest(new { message = "O conteúdo da mensagem não pode estar vazio." });
+
+                MessageDTO createdMessage = await _chatService.AddMessageToChat(chatId, currentUserId, dto.Content);
+
+                return Ok(createdMessage);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao enviar mensagem no chat {ChatId}", chatId);
+                return StatusCode(500, new { message = "Erro interno do servidor." });
+            }
+        }
+
         // GET: api/chats
         [HttpGet]
-        public async Task<IActionResult> GetMyChats([FromQuery] DateTime? lastUpdatedAt, [FromBody] Guid? lastId, [FromQuery] int pageSize = 20)
+        public async Task<IActionResult> GetMyChats([FromQuery] DateTime? lastUpdatedAt, [FromQuery] Guid? lastId, [FromQuery] int pageSize = 20)
         {
             try
             {
@@ -95,33 +127,6 @@ namespace Rediter.Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao buscar mensagens do chat {ChatId}", chatId);
-                return StatusCode(500, new { message = "Erro interno do servidor." });
-            }
-        }
-
-        // POST: api/chats/{chatId}/messages
-        [HttpPost("{chatId:guid}/messages")]
-        public async Task<IActionResult> SendMessage([FromRoute] Guid chatId, [FromBody] NewMessageDTO dto)
-        {
-            try
-            {
-                if (!TryGetCurrentUserId(out Guid currentUserId))
-                    return Unauthorized(new { message = "Usuário não encontrado no token." });
-
-                if (string.IsNullOrWhiteSpace(dto.Content))
-                    return BadRequest(new { message = "O conteúdo da mensagem não pode estar vazio." });
-
-                await _chatService.AddMessageToChat(chatId, currentUserId, dto.Content);
-
-                return Created(string.Empty, new { message = "Mensagem enviada com sucesso" });
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Forbid(); 
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erro ao enviar mensagem no chat {ChatId}", chatId);
                 return StatusCode(500, new { message = "Erro interno do servidor." });
             }
         }

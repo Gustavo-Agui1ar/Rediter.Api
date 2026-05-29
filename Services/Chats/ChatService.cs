@@ -1,4 +1,5 @@
-﻿using Rediter.Api.DTOs.Users;
+﻿using Rediter.Api.DTOs;
+using Rediter.Api.DTOs.Users;
 using Rediter.Api.Models.Chats;
 using Rediter.Api.Repositories.Chats;
 using Rediter.Api.Services.UtilitariesServices;
@@ -40,7 +41,7 @@ namespace Rediter.Api.Services.Chats
             return newChat.Id;
         }
 
-        public async Task AddMessageToChat(Guid chatId, Guid senderId, string content)
+        public async Task<MessageDTO> AddMessageToChat(Guid chatId, Guid currentUserId, string content)
         {
             Chat? chat = await _chatRepository.GetByUuid(chatId);
             
@@ -50,7 +51,7 @@ namespace Rediter.Api.Services.Chats
             Message message = new Message
             {
                 ChatId = chatId,
-                SenderId = senderId,
+                SenderId = currentUserId,
                 Content = content,
                 CreatedAt = DateTime.UtcNow
             };
@@ -60,6 +61,8 @@ namespace Rediter.Api.Services.Chats
             _chatRepository.Update(chat);
             
             await SaveChangesAsync();
+
+            return new MessageDTO(message.Id, true, message.Content, message.CreatedAt);
         }
 
         public async Task<List<UserChat>> GetUserChatsAsync(Guid currentUserId, DateTime? lastUpdatedAt, Guid? lastId, int pageSize)

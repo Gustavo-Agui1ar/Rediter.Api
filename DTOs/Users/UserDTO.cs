@@ -2,7 +2,7 @@
 {
     public record UserDTO
     {
-        public string UserID { get; init; } = null!;
+        public Guid UserID { get; init; }
         public string? Name { get; init; }
         public string? Email { get; init; }
         public string? Password {  get; init; }
@@ -13,6 +13,7 @@
         public bool isBlocked { get; set; }
         public int Followers { get; set; }
         public int Following { get; set; }
+        public Guid? ChatId { get; set; }
     };
 
     public record UserUpdateDTO(
