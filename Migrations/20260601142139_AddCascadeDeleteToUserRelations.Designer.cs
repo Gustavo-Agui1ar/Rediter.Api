@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Oracle.EntityFrameworkCore.Metadata;
 using Rediter.Api.Data;
@@ -11,9 +12,11 @@ using Rediter.Api.Data;
 namespace Rediter.Api.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20260601142139_AddCascadeDeleteToUserRelations")]
+    partial class AddCascadeDeleteToUserRelations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -132,6 +135,7 @@ namespace Rediter.Api.Migrations
                         .HasColumnName("IS_DELETED");
 
                     b.Property<Guid>("SenderId")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("RAW(16)")
                         .HasColumnName("SENDER_ID");
 
@@ -446,12 +450,6 @@ namespace Rediter.Api.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("FOLLOWING_COUNT");
 
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("NUMBER(1)")
-                        .HasDefaultValue(false)
-                        .HasColumnName("IS_DELETED");
-
                     b.Property<bool>("IsVerified")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("NUMBER(1)")
@@ -655,7 +653,7 @@ namespace Rediter.Api.Migrations
                     b.HasOne("Rediter.Api.Models.Posts.Post", "ParentPost")
                         .WithMany("Replies")
                         .HasForeignKey("ParentPostId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Rediter.Api.Models.Users.User", "User")
                         .WithMany()

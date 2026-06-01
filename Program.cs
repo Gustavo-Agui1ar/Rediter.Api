@@ -1,6 +1,7 @@
 using FirebaseAdmin;
 using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Oracle.ManagedDataAccess.Client;
@@ -9,10 +10,12 @@ using Rediter.Api.Data;
 using Rediter.Api.Hubs;
 using Rediter.Api.Infrastructure;
 using Rediter.Api.Infrastructure.Notifications;
+using Rediter.Api.Models.Users;
 using Rediter.Api.Repositories;
 using Rediter.Api.Repositories.Users;
 using Rediter.Api.Services.Dispatchers;
 using Rediter.Api.Services.Users;
+using Rediter.Api.Services.UtilitariesServices;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -308,33 +311,110 @@ catch (Exception ex)
 
 #endregion
 
+#region Database Validation
+try
+{
+    using var scope = app.Services.CreateScope();
+
+    Console.WriteLine("[Oracle] Resolvendo DbContext...");
+    var db = scope.ServiceProvider.GetRequiredService<DataContext>();
+    Console.WriteLine("[Oracle] DbContext resolvido.");
+
+    Console.WriteLine("[Oracle] Testando conexão...");
+    bool canConnect = await db.Database.CanConnectAsync();
+    Console.WriteLine($"[Oracle] Conexão OK: {canConnect}");
+
+    if (app.Environment.IsDevelopment())
+    {
+        Console.WriteLine("[Oracle] Executando migrations...");
+        await db.Database.MigrateAsync();
+        Console.WriteLine("[Oracle] Migrations concluídas.");
+    }
+
+    Console.WriteLine("[Seeding] Verificando e criando Roles e Super Admin...");
+
+    var defaultRole = await db.Set<Role>().FirstOrDefaultAsync(r => r.Name == "Default");
+    if (defaultRole == null)
+    {
+        defaultRole = new Role
+        {
+            Name = "Default",
+            Description = "Usuário comum com permissões padrão do aplicativo"
+        };
+        db.Set<Role>().Add(defaultRole);
+        Console.WriteLine("[Seeding] Role 'Default' inserida no banco.");
+    }
+
+    var adminRole = await db.Set<Role>().FirstOrDefaultAsync(r => r.Name == "SuperAdmin");
+    if (adminRole == null)
+    {
+        adminRole = new Role
+        {
+            Name = "SuperAdmin",
+            Description = "Administrador máximo com controle total do sistema"
+        };
+        db.Set<Role>().Add(adminRole);
+        Console.WriteLine("[Seeding] Role 'SuperAdmin' inserida no banco.");
+    }
+
+    await db.SaveChangesAsync();
+
+    var userManager = scope.ServiceProvider.GetRequiredService<UserService>();
+    var adminEmail = "admin@rediter.com";
+    var adminUser = await userManager.GetByEmailAsync(adminEmail);
+
+    if (adminUser == null)
+    {
+        string rawPassword = "AdminP@ssw0rd2026!";
+        string hashedPassword = HashService.HashPassword(rawPassword);
+
+        var newAdmin = new User
+        {
+            Name = "RediterAdmin",
+            Email = adminEmail,
+            Password = hashedPassword,
+        };
+
+        newAdmin.Roles.Add(adminRole);
+        newAdmin.Roles.Add(defaultRole);
+
+        userManager.Insert(newAdmin);
+
+        await userManager.SaveChangesAsync();
+
+        Console.WriteLine("[Seeding] Usuário Super Admin criado e vinculado com sucesso!");
+    }
+    else
+        Console.WriteLine("[Seeding] Super Admin já existente. Ignorando criação.");
+}
+catch (Exception ex)
+{
+    Console.WriteLine("[Oracle / Seeding] ERRO CRÍTICO:");
+    Console.WriteLine(ex.ToString());
+}
+#endregion
+
 #region Endpoints
-
 app.MapHub<NotificationHub>("/Hubs/NotificationHub");
-
 Console.WriteLine("[SignalR] NotificationHub mapeado.");
 
 app.MapControllers();
-
 Console.WriteLine("[Controllers] Controllers mapeados.");
 
 app.MapGet("/", () => "Rediter API Running");
-
 #endregion
 
 #region Shutdown
-
 app.Lifetime.ApplicationStopping.Register(() =>
 {
     Console.WriteLine("[SHUTDOWN] Encerrando RabbitMQ...");
 
-    rabbitConnection.CloseAsync()
-        .GetAwaiter()
-        .GetResult();
+    // Se a factory do RabbitConnection não estiver visível aqui, pode ser necessário pegá-la via DI
+    var rabbitConn = app.Services.GetRequiredService<IConnection>();
+    rabbitConn.CloseAsync().GetAwaiter().GetResult();
 
     Console.WriteLine("[SHUTDOWN] RabbitMQ encerrado.");
 });
-
 #endregion
 
 Console.WriteLine("====================================");
@@ -343,4 +423,4 @@ Console.WriteLine("[READY] Health: /");
 Console.WriteLine("[READY] SignalR: /Hubs/NotificationHub");
 Console.WriteLine("====================================");
 
-app.Run();
+app.Run(); // Apenas UM app.Run() no final do arquivo inteiro!

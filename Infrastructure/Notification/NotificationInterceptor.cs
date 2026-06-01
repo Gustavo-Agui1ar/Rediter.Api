@@ -24,9 +24,9 @@ public class NotificationInterceptor : SaveChangesInterceptor
     }
 
     public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
-        DbContextEventData eventData,
-        InterceptionResult<int> result,
-        CancellationToken cancellationToken = default)
+     DbContextEventData eventData,
+     InterceptionResult<int> result,
+     CancellationToken cancellationToken = default)
     {
         if (eventData.Context == null)
             return await base.SavingChangesAsync(eventData, result, cancellationToken);
@@ -48,10 +48,17 @@ public class NotificationInterceptor : SaveChangesInterceptor
             .Select(e => e.Entity)
             .ToList();
 
-        _pendingMessages = eventData.Context.ChangeTracker.Entries<Message>()
+        var addedMessagesEntries = eventData.Context.ChangeTracker.Entries<Message>()
             .Where(e => e.State == EntityState.Added)
-            .Select(e => e.Entity)
             .ToList();
+
+        foreach (var entry in addedMessagesEntries)
+        {
+            if (entry.Entity.Sender == null && entry.Entity.SenderId != Guid.Empty)
+                await entry.Reference(m => m.Sender).LoadAsync(cancellationToken);
+        }
+
+        _pendingMessages = addedMessagesEntries.Select(e => e.Entity).ToList();
 
         return await base.SavingChangesAsync(eventData, result, cancellationToken);
     }
@@ -104,7 +111,8 @@ public class NotificationInterceptor : SaveChangesInterceptor
                         message.Id,
                         false,
                         message.Content,
-                        message.CreatedAt
+                        message.CreatedAt,
+                        message.Sender.Name
                     );
 
                     var destinatarioId = await eventData.Context.Set<Message>()

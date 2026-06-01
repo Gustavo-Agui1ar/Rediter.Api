@@ -130,5 +130,23 @@ namespace Rediter.Api.Controllers
                 return StatusCode(500, new { message = "Erro interno do servidor." });
             }
         }
+
+        [HttpPost("group")]
+        public async Task<IActionResult> CreateGroupMessage([FromBody] CreateGroupDTO group)
+        {
+            try
+            {
+                if (!TryGetCurrentUserId(out Guid currentUserId))
+                    return Unauthorized(new { message = "Usuário não encontrado no token." });
+
+                Guid chatId = await _chatService.CreateGroupChatAsync(currentUserId, group.Title, group.ParticipantsIds);
+                return Ok(new { chatId });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao criar chat em grupo com o título {GroupTitle}", group.Title);
+                return StatusCode(500, new { message = "Erro interno do servidor." });
+            }
+        }
     }
 }

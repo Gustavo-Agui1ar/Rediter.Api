@@ -23,5 +23,10 @@ public class ChatMap : EntityMap<Chat>
         builder.Property(x => x.UpdateAt)
                .HasColumnName("UPDATE_AT")
                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+        builder.HasMany(c => c.Participants) 
+           .WithOne(p => p.Chat)
+           .HasForeignKey(p => p.ChatId)
+           .OnDelete(DeleteBehavior.Cascade);
     }
 }

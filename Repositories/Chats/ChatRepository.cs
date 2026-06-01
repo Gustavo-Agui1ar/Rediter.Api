@@ -37,24 +37,34 @@ namespace Rediter.Api.Repositories.Chats
                     (c.UpdateAt == lastUpdatedAt.Value && c.Id.CompareTo(lastId.Value) < 0)
                 );
             }
-            else if (lastUpdatedAt.HasValue) 
+            else if (lastUpdatedAt.HasValue)
             {
                 query = query.Where(c => c.UpdateAt < lastUpdatedAt.Value);
             }
 
             var chats = await query
                 .OrderByDescending(c => c.UpdateAt)
-                .ThenByDescending(c => c.Id) 
+                .ThenByDescending(c => c.Id)
                 .Take(pageSize)
                 .Select(c => new UserChat(
                     c.Id,
-                    c.UpdateAt, 
-
+                    c.IsGroup
+                        ? string.Empty
+                        : c.Participants.FirstOrDefault(p => p.UserId != currentUserId)!.UserId.ToString(),
                     c.IsGroup
                         ? (c.Title ?? "Grupo sem nome")
-                        : c.Participants.FirstOrDefault(p => p.UserId != currentUserId)!.User.Name
-                ))
-                .ToListAsync();
+                        : c.Participants.FirstOrDefault(p => p.UserId != currentUserId)!.User.Name,
+                    c.IsGroup
+                    ? null
+                    : c.Participants.Where(p => p.UserId != currentUserId).Select(p => p.User.ProfilePicture!.FileName).FirstOrDefault(),
+                    c.Messages.OrderByDescending(m => m.CreatedAt).Select(m => m.Content).FirstOrDefault() ?? string.Empty,
+                    c.UpdateAt,
+                    c.Messages.Count(
+                        m => m.SenderId != currentUserId &&
+                        c.Participants.Where(p => p.UserId == currentUserId).Select(p => p.LastReadAt).FirstOrDefault() == null ||
+                        m.CreatedAt > c.Participants.Where(p => p.UserId == currentUserId).Select(p => p.LastReadAt).FirstOrDefault()
+                    )
+                )).ToListAsync();
 
             return chats;
         }

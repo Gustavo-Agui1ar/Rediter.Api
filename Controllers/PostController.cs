@@ -196,10 +196,12 @@ namespace Rediter.Api.Controllers
         {
             try
             {
-                if (!TryGetCurrentUserId(out _))
+                if (!TryGetCurrentUserId(out Guid currentUserId))
                     return Unauthorized(new { message = "Usuário não encontrado no token." });
 
-                await _postService.DeletePost(id);
+                bool isAdmin = User.IsInRole("SuperAdmin");
+
+                await _postService.DeletePost(id, currentUserId, isAdmin);
 
                 return NoContent();
             }

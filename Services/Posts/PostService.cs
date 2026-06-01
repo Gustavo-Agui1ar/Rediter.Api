@@ -135,7 +135,7 @@ namespace Rediter.Api.Services.Posts
             }
         }
 
-        public async Task DeletePost(Guid postId)
+        public async Task DeletePost(Guid postId, Guid currentUserId, bool isAdmin)
         {
             using (var scope = new TransactionScope(TransactionScopeOption.Required, TransactionScopeAsyncFlowOption.Enabled))
             {
@@ -145,6 +145,9 @@ namespace Rediter.Api.Services.Posts
 
                     if (post == null)
                         throw new Exception("Post não encontrado");
+
+                    if (!isAdmin && post.UserId != currentUserId)
+                        throw new Exception("Usuário não tem permissão para deletar este post");
 
                     _postrepository.Delete(post);
 

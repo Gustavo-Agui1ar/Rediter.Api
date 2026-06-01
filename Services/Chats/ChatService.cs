@@ -62,12 +62,38 @@ namespace Rediter.Api.Services.Chats
             
             await SaveChangesAsync();
 
-            return new MessageDTO(message.Id, true, message.Content, message.CreatedAt);
+            return new MessageDTO(message.Id, true, message.Content, message.CreatedAt, message.Sender.Name);
         }
 
         public async Task<List<UserChat>> GetUserChatsAsync(Guid currentUserId, DateTime? lastUpdatedAt, Guid? lastId, int pageSize)
         {
             return await _chatRepository.GetUserChatsAsync(currentUserId, lastUpdatedAt, lastId, pageSize);
+        }
+
+        public async Task<Guid> CreateGroupChatAsync(Guid currentUserId, string title, IEnumerable<Guid> participantIds)
+        {
+            var uniqueParticipantIds = participantIds.Distinct().ToList();
+
+            if (!uniqueParticipantIds.Contains(currentUserId))
+                uniqueParticipantIds.Add(currentUserId);
+
+            if (uniqueParticipantIds.Count < 2)
+                throw new ArgumentException("Um grupo precisa ter pelo menos 2 participantes.");
+
+            var participants = uniqueParticipantIds.Select(userId => new ChatParticipant{ UserId = userId }).ToList();
+
+            Chat newChat = new Chat
+            {
+                Title = title,
+                IsGroup = true,
+                Participants = participants
+            };
+
+            _chatRepository.Insert(newChat);
+
+            await SaveChangesAsync();
+
+            return newChat.Id;
         }
     }
 }

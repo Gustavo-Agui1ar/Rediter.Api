@@ -22,14 +22,25 @@ namespace Rediter.Api.Services.UtilitariesServices
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.ASCII.GetBytes(_config["JwtSettings:Secret"]!);
 
-            var tokenDescriptor = new SecurityTokenDescriptor
+            var claims = new List<Claim>
             {
-                Subject = new ClaimsIdentity(new[]
-                {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email),
                 new Claim(ClaimTypes.Name, user.Name)
-            }),
+            };
+
+            if (user.Roles != null && user.Roles.Any())
+            {
+                foreach (var role in user.Roles)
+                {
+                    if (!string.IsNullOrWhiteSpace(role.Name))
+                        claims.Add(new Claim(ClaimTypes.Role, role.Name));
+                }
+            }
+
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(claims),
                 Expires = DateTime.UtcNow.AddHours(double.Parse(_config["JwtSettings:ExpireHours"]!)),
                 SigningCredentials = new SigningCredentials(
                     new SymmetricSecurityKey(key),
@@ -37,7 +48,6 @@ namespace Rediter.Api.Services.UtilitariesServices
             };
 
             var accessToken = tokenHandler.CreateToken(tokenDescriptor);
-
             var refreshToken = GenerateRefreshToken();
 
             return new TokenRequestDTO

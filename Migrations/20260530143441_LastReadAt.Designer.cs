@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Oracle.EntityFrameworkCore.Metadata;
 using Rediter.Api.Data;
@@ -11,9 +12,11 @@ using Rediter.Api.Data;
 namespace Rediter.Api.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20260530143441_LastReadAt")]
+    partial class LastReadAt
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -132,6 +135,7 @@ namespace Rediter.Api.Migrations
                         .HasColumnName("IS_DELETED");
 
                     b.Property<Guid>("SenderId")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("RAW(16)")
                         .HasColumnName("SENDER_ID");
 
@@ -375,36 +379,6 @@ namespace Rediter.Api.Migrations
                     b.ToTable("USER_FOLLOWERS", (string)null);
                 });
 
-            modelBuilder.Entity("Rediter.Api.Models.Users.Role", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("RAW(16)")
-                        .HasColumnName("ID");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TIMESTAMP(7)")
-                        .HasColumnName("CREATED_AT")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("NVARCHAR2(255)")
-                        .HasColumnName("DESCRIPTION");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("NVARCHAR2(50)")
-                        .HasColumnName("NAME");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ROLES", (string)null);
-                });
-
             modelBuilder.Entity("Rediter.Api.Models.Users.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -445,12 +419,6 @@ namespace Rediter.Api.Migrations
                         .HasColumnType("NUMBER(10)")
                         .HasDefaultValue(0)
                         .HasColumnName("FOLLOWING_COUNT");
-
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("NUMBER(1)")
-                        .HasDefaultValue(false)
-                        .HasColumnName("IS_DELETED");
 
                     b.Property<bool>("IsVerified")
                         .ValueGeneratedOnAdd()
@@ -537,25 +505,6 @@ namespace Rediter.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("USER_BLOCKS", (string)null);
-                });
-
-            modelBuilder.Entity("USER_ROLES", b =>
-                {
-                    b.Property<Guid>("ROLE_ID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("RAW(16)")
-                        .HasColumnName("ROLE_ID");
-
-                    b.Property<Guid>("USER_ID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("RAW(16)")
-                        .HasColumnName("USER_ID");
-
-                    b.HasKey("ROLE_ID", "USER_ID");
-
-                    b.HasIndex("USER_ID");
-
-                    b.ToTable("USER_ROLES");
                 });
 
             modelBuilder.Entity("UserPostLike", b =>
@@ -655,7 +604,7 @@ namespace Rediter.Api.Migrations
                     b.HasOne("Rediter.Api.Models.Posts.Post", "ParentPost")
                         .WithMany("Replies")
                         .HasForeignKey("ParentPostId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Rediter.Api.Models.Users.User", "User")
                         .WithMany()
@@ -692,13 +641,13 @@ namespace Rediter.Api.Migrations
                     b.HasOne("Rediter.Api.Models.Users.User", "UserFollower")
                         .WithMany("Following")
                         .HasForeignKey("FollowerId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Rediter.Api.Models.Users.User", "UserFollowing")
                         .WithMany("Followers")
                         .HasForeignKey("FollowingId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("UserFollower");
@@ -728,33 +677,18 @@ namespace Rediter.Api.Migrations
                     b.HasOne("Rediter.Api.Models.Users.User", "Blocked")
                         .WithMany("BlockedBy")
                         .HasForeignKey("BlockedId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Rediter.Api.Models.Users.User", "Blocker")
                         .WithMany("BlockedUsers")
                         .HasForeignKey("BlockerId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Blocked");
 
                     b.Navigation("Blocker");
-                });
-
-            modelBuilder.Entity("USER_ROLES", b =>
-                {
-                    b.HasOne("Rediter.Api.Models.Users.Role", null)
-                        .WithMany()
-                        .HasForeignKey("ROLE_ID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Rediter.Api.Models.Users.User", null)
-                        .WithMany()
-                        .HasForeignKey("USER_ID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("UserPostLike", b =>

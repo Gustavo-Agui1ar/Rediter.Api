@@ -2,6 +2,7 @@
 using Rediter.Api.Data;
 using Rediter.Api.DTOs;
 using Rediter.Api.Models.Chats;
+using Rediter.Api.Models.Users;
 
 namespace Rediter.Api.Repositories.Chats
 {
@@ -16,6 +17,11 @@ namespace Rediter.Api.Repositories.Chats
 
         public async Task<List<MessageDTO>> GetMessagesAsync(Guid chatId, Guid currentUserId, DateTime? lastCreatedAt, Guid? lastId, int pageSize)
         {
+
+            await _context.Set<ChatParticipant>()
+                .Where(cp => cp.ChatId == chatId && cp.UserId == currentUserId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(cp => cp.LastReadAt, DateTime.UtcNow));
+
             var query = _data.Set<Message>()
                 .AsNoTracking()
                 .Where(m => m.ChatId == chatId && !m.IsDeleted)
@@ -30,7 +36,8 @@ namespace Rediter.Api.Repositories.Chats
                     m.Id,
                     m.SenderId == currentUserId, 
                     m.Content,
-                    m.CreatedAt
+                    m.CreatedAt,
+                    _context.Set<User>().Where(u => u.Id == m.SenderId).Select(u => u.Name).FirstOrDefault()
                 ))
                 .ToListAsync();
 

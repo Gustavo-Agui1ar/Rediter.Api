@@ -129,6 +129,25 @@ namespace Rediter.Api.Controllers
             }
         }
 
+        [HttpDelete("{id:guid}")]
+        public async Task<IActionResult> DeleteUser([FromRoute] Guid id)
+        {
+            try
+            {
+                if (!TryGetCurrentUserId(out Guid userId))
+                    return Unauthorized(new { message = "Session Expired or Invalid User ID." });
+
+                if (!(await _userService.DeleteUser(id, userId, User.IsInRole("SuperAdmin") )))
+                    return BadRequest(new { message = "Failed to delete user." });
+
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"An error occurred while deleting the user: {ex.Message}" });
+            }
+        }
+
         // GET: api/users/search
         [HttpGet("search")]
         public async Task<IActionResult> SearchUsers([FromQuery] string query, [FromQuery] DateTime? lastCreatedAt, [FromQuery] Guid? lastId, [FromQuery] int pageSize)

@@ -42,6 +42,11 @@ namespace Rediter.Api.Services.Users
 
                     await _emailService.SendVerificationCodeAsync(user.Email, user.Name, user.VerificationCode);
 
+                    Role? defaultRole = await _UserRepository.GetRoleDefault();
+
+                    if (defaultRole != null)
+                        user.Roles.Add(defaultRole); 
+
                     _UserRepository.Insert(user);
 
                     await SaveChangesAsync();
@@ -58,6 +63,15 @@ namespace Rediter.Api.Services.Users
         public async Task<string> GetUserCodeAsync(string userId)
         {
             return await _UserRepository.GetCodeByIdAsync(Guid.Parse(userId));
+        }
+
+        public async Task AddRole(User user, string roleName)
+        {
+            var role = await _UserRepository.GetRoleByNameAsync(roleName);
+            if (role != null)
+                user.Roles.Add(role);
+
+            await SaveChangesAsync();
         }
 
         public async Task<User?> GetByEmailAsync(string email)
@@ -157,6 +171,21 @@ namespace Rediter.Api.Services.Users
             user.DeviceToken = dto.deviceToken;
 
             await SaveChangesAsync();
+        }
+
+        public async Task<bool> DeleteUser(Guid userId, Guid currentUserId, bool isAdmin)
+        {
+            if (userId != currentUserId && !isAdmin) return false;
+
+            try
+            {
+                await _UserRepository.DeleteUserAsync(userId);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
         }
     }
 }

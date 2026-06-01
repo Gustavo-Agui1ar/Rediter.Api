@@ -16,6 +16,10 @@ public class ChatParticipantMap : EntityMap<ChatParticipant>
         builder.Property(x => x.UserId).HasColumnName("USER_ID").IsRequired();
         builder.Property(x => x.IsMuted).HasColumnName("IS_MUTED").HasDefaultValue(false);
 
+        builder.Property(x => x.LastReadAt)
+               .HasColumnName("LAST_READ_AT")
+               .IsRequired(false);
+
         builder.HasOne(x => x.Chat)
                .WithMany(c => c.Participants)
                .HasForeignKey(x => x.ChatId)

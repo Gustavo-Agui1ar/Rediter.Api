@@ -28,11 +28,6 @@ namespace Rediter.Api.Mapping.Posts
                 .HasForeignKey(p => p.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            builder.HasOne(p => p.ParentPost)
-                .WithMany(p => p.Replies)
-                .HasForeignKey(p => p.ParentPostId)
-                .OnDelete(DeleteBehavior.Restrict); 
-
             builder.HasMany(p => p.PostImages)
                 .WithOne() 
                 .HasForeignKey("PostId")
@@ -42,6 +37,11 @@ namespace Rediter.Api.Mapping.Posts
                 .WithOne()
                 .HasForeignKey("PostId")
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(p => p.ParentPost)
+               .WithMany(p => p.Replies) 
+               .HasForeignKey(p => p.ParentPostId)
+               .OnDelete(DeleteBehavior.Cascade);
 
             builder.Property<string>("ContentLower")
               .HasMaxLength(500)

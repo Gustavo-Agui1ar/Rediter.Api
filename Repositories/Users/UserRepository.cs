@@ -4,6 +4,7 @@ using Rediter.Api.DTOs.Users;
 using Rediter.Api.Models.Users;
 using Rediter.Api.Models.Chats;
 using System.Linq.Expressions;
+using Rediter.Api.Models.Posts;
 
 namespace Rediter.Api.Repositories.Users
 {
@@ -24,10 +25,69 @@ namespace Rediter.Api.Repositories.Users
             return code ?? string.Empty;
         }
 
+        public async Task<Role> GetRoleByNameAsync(string roleName)
+        {
+            var role = await _context.Set<Role>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(r => r.Name == roleName);
+            if (role == null)
+                throw new Exception($"Role '{roleName}' not found.");
+            return role;
+        }
+
         public async Task<User?> GetByEmailAsync(string email, bool trackChanges = true)
         {
             var query = trackChanges ? _dbSet : _dbSet.AsNoTracking();
-            return await query.FirstOrDefaultAsync(u => u.Email == email);
+
+            return await query
+                .Include(u => u.Roles) 
+                .FirstOrDefaultAsync(u => u.Email == email);
+        }
+
+        public async Task DeleteUserAsync(Guid userId)
+        {
+            var user = await _context.FindAsync<User>(userId);
+            if (user == null) return;
+
+            var followingRelations = await _context.Set<Follower>()
+                .Where(f => f.FollowerId == userId).ToListAsync();
+
+            foreach (var relation in followingRelations)
+            {
+                var followedUser = await _context.FindAsync<User>(relation.FollowingId);
+                if (followedUser != null && followedUser.FollowersCount > 0)
+                    followedUser.FollowersCount--;
+            }
+
+            var followerRelations = await _context.Set<Follower>()
+                .Where(f => f.FollowingId == userId).ToListAsync();
+
+            foreach (var relation in followerRelations)
+            {
+                var followerUser = await _context.FindAsync<User>(relation.FollowerId);
+                if (followerUser != null && followerUser.FollowingCount > 0)
+                    followerUser.FollowingCount--;
+            }
+
+            _context.Set<Follower>().RemoveRange(followingRelations);
+            _context.Set<Follower>().RemoveRange(followerRelations);
+
+            var blocks = await _context.Set<UserBlock>()
+                .Where(b => b.BlockerId == userId || b.BlockedId == userId).ToListAsync();
+            _context.Set<UserBlock>().RemoveRange(blocks);
+
+            user.IsDeleted = true;
+            user.Name = "Usuário Excluído";
+            user.Email = $"deleted_{Guid.NewGuid()}@deleted.com";
+            user.ProfilePictureId = null;
+            user.ProfileCoverId = null;
+            user.DeviceToken = null;
+            user.Password = null;
+            user.Description = "";
+            user.FollowersCount = 0;
+            user.FollowingCount = 0;
+
+            await _context.SaveChangesAsync();
         }
 
         public async Task<User?> GetUserByRefreshAsync(string refresh, bool trackChanges = true)
@@ -60,6 +120,8 @@ namespace Rediter.Api.Repositories.Users
                     !u.BlockedUsers.Any(b => b.BlockedId == currentUserId)
                  );
             }
+
+            usersQuery = usersQuery.Where(u => u.Id != currentUserId && !u.IsDeleted);
 
             return await ApplyKeysetPagination(usersQuery, lastCreatedAt, lastId)
                 .OrderByDescending(u => u.CreatedAt)
@@ -99,6 +161,14 @@ namespace Rediter.Api.Repositories.Users
             {
                 throw new ArgumentException("Para a paginação, 'lastCreatedAt' e 'lastId' devem ser fornecidos juntos ou ambos nulos.");
             }
+        }
+
+        public async Task<Role?> GetRoleDefault()
+        {
+
+            var defaultRole = await _context.Set<Role>()
+                              .FirstOrDefaultAsync(r => r.Name == "Default");
+            return defaultRole;
         }
 
         private static Expression<Func<User, UserFeedInfoDTO>> MapToUserFeedInfoDTO(Guid currentUserId)
@@ -144,6 +214,26 @@ namespace Rediter.Api.Repositories.Users
                                 .FirstOrDefault()
                 })
                 .FirstOrDefaultAsync() ?? throw new Exception("User not found.");
+        }
+
+        public async Task<DashboardMetricsDTO> GetMetricsAsync()
+        {
+            var today = DateTime.UtcNow.Date;
+
+            var totalUsers = await _context.Set<User>().IgnoreQueryFilters().CountAsync();
+            var totalPosts = await _context.Set<Post>().CountAsync();
+
+            var postsToday = await _context.Set<Post>()
+                .Where(p => p.CreatedAt >= today)
+                .CountAsync();
+
+            return new DashboardMetricsDTO
+            {
+                TotalUsers = totalUsers,
+                TotalPosts = totalPosts,
+                TotalPostsToday = postsToday,
+                OnlineUsersNow = 0 
+            };
         }
     }
 }
