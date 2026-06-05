@@ -35,7 +35,7 @@ namespace Rediter.Api.Repositories.Posts
                 .ToListAsync(cancellationToken);
         }
 
-        public async Task<IList<string>> GetAllMidiaNames(Guid userId) 
+        public async Task<IList<string>> GetAllMidiaNames(Guid userId)
         {
             return await _dbSet
                 .AsNoTracking()
@@ -122,7 +122,7 @@ namespace Rediter.Api.Repositories.Posts
             return await ApplyKeysetPagination(query, lastCreatedAt, lastId)
                 .OrderByDescending(p => p.CreatedAt)
                 .ThenByDescending(p => p.Id)
-                .Select(MapToPostFeedDTO(userId)) 
+                .Select(MapToPostFeedDTO(userId))
                 .Take(pageSize)
                 .ToListAsync(cancellationToken);
         }
@@ -137,21 +137,12 @@ namespace Rediter.Api.Repositories.Posts
         {
             ValidatePaginationState(lastCreatedAt, lastId);
 
-            var myBlockedUserIds = _context.Set<UserBlock>()
-                .AsNoTracking()
-                .Where(b => b.BlockerId == currentUserId)
-                .Select(b => b.BlockedId);
-
-            var usersWhoBlockedMeIds = _context.Set<UserBlock>()
-                .AsNoTracking()
-                .Where(b => b.BlockedId == currentUserId)
-                .Select(b => b.BlockerId);
-
             var query = _dbSet.AsNoTracking()
                 .Where(p => p.ParentPostId == null
                          && p.UserId != currentUserId
-                         && !myBlockedUserIds.Contains(p.UserId)      
-                         && !usersWhoBlockedMeIds.Contains(p.UserId) 
+                         && p.User != null
+                         && !p.User.BlockedBy.Any(b => b.BlockerId == currentUserId)
+                         && !p.User.BlockedUsers.Any(b => b.BlockedId == currentUserId)
                 );
 
             if (lastScore.HasValue && lastCreatedAt.HasValue && lastId.HasValue)
@@ -159,7 +150,7 @@ namespace Rediter.Api.Repositories.Posts
                 query = query.Where(p =>
                     (p.LikesCount * 1 + p.CommentsCount * 2) < lastScore ||
                     ((p.LikesCount * 1 + p.CommentsCount * 2) == lastScore && p.CreatedAt < lastCreatedAt) ||
-                    ((p.LikesCount * 1 + p.CommentsCount * 2) == lastScore && p.CreatedAt == lastCreatedAt && p.Id.CompareTo(lastId) < 0)
+                    ((p.LikesCount * 1 + p.CommentsCount * 2) == lastScore && p.CreatedAt == lastCreatedAt && p.Id != lastId)
                 );
             }
 
@@ -181,27 +172,19 @@ namespace Rediter.Api.Repositories.Posts
         {
             ValidatePaginationState(lastCreatedAt, lastId);
 
-            var myBlockedUserIds = _context.Set<UserBlock>()
-               .AsNoTracking()
-               .Where(b => b.BlockerId == currentUserId)
-               .Select(b => b.BlockedId);
-
-            var usersWhoBlockedMeIds = _context.Set<UserBlock>()
-                .AsNoTracking()
-                .Where(b => b.BlockedId == currentUserId)
-                .Select(b => b.BlockerId);
-
             var query = _dbSet.AsNoTracking()
                 .Where(p => p.ParentPostId == null
-                         && p.User!.Followers.Any(f => f.FollowerId == currentUserId)
-                         && !myBlockedUserIds.Contains(p.UserId)      
-                         && !usersWhoBlockedMeIds.Contains(p.UserId));
+                         && p.User != null
+                         && p.User.Followers.Any(f => f.FollowerId == currentUserId)
+                         && !p.User.BlockedBy.Any(b => b.BlockerId == currentUserId)
+                         && !p.User.BlockedUsers.Any(b => b.BlockedId == currentUserId)
+                );
 
             if (lastCreatedAt.HasValue && lastId.HasValue)
             {
                 query = query.Where(p =>
                     p.CreatedAt < lastCreatedAt ||
-                    (p.CreatedAt == lastCreatedAt && p.Id.CompareTo(lastId) < 0)
+                    (p.CreatedAt == lastCreatedAt && p.Id != lastId)
                 );
             }
 
@@ -237,7 +220,7 @@ namespace Rediter.Api.Repositories.Posts
                 Edited = p.CreatedAt != p.UpdatedAt,
                 CreatedAt = p.CreatedAt,
                 LikesCount = p.LikesCount,
-                CommentsCount = p.CommentsCount, 
+                CommentsCount = p.CommentsCount,
                 LikedByCurrentUser = currentUserId != Guid.Empty && p.Likes.Any(l => l.UserId == currentUserId),
                 PostUserID = p.UserId.ToString(),
                 IsFollowing = currentUserId != Guid.Empty && p.User.Followers.Any(f => f.FollowerId == currentUserId),

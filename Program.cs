@@ -409,7 +409,6 @@ app.Lifetime.ApplicationStopping.Register(() =>
 {
     Console.WriteLine("[SHUTDOWN] Encerrando RabbitMQ...");
 
-    // Se a factory do RabbitConnection não estiver visível aqui, pode ser necessário pegá-la via DI
     var rabbitConn = app.Services.GetRequiredService<IConnection>();
     rabbitConn.CloseAsync().GetAwaiter().GetResult();
 
@@ -423,4 +422,4 @@ Console.WriteLine("[READY] Health: /");
 Console.WriteLine("[READY] SignalR: /Hubs/NotificationHub");
 Console.WriteLine("====================================");
 
-app.Run(); // Apenas UM app.Run() no final do arquivo inteiro!
+app.Run(); 
