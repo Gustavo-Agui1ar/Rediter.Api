@@ -17,7 +17,7 @@ public class PostLikedEventHandler : INotificationHandler<PostLikedEvent>
 
     public Task Handle(PostLikedEvent notification, CancellationToken cancellationToken)
     {
-        // if (notification.SenderUserId == notification.RecipientUserId) return Task.CompletedTask;
+        if (notification.SenderUserId == notification.RecipientUserId) return Task.CompletedTask;
 
         var notifDb = new Notification
         {

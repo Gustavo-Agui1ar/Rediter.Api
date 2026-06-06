@@ -17,42 +17,27 @@ namespace Rediter.Api.Repositories
             _dbSet = _context.Set<T>();
         }
 
-        /// <summary>
-        /// Insere no banco a classe do repositorio 
-        /// </summary>
         public virtual void Insert(T entity)
         {
             _dbSet.Add(entity);
         }
 
-        /// <summary>
-        /// Atualiza a classe do repositorio
-        /// </summary>
         public virtual void Update(T entity)
         {
             _dbSet.Update(entity);
         }
 
-        /// <summary>
-        /// Deleta do banco a classe
-        /// </summary>
         public virtual void Delete(T entity)
         {
             _dbSet.Remove(entity);
         }
 
-        /// <summary>
-        /// Procura classe por uuid (com opção de AsNoTracking para performance)
-        /// </summary>
         public virtual async Task<T?> GetByUuid(Guid uuid, bool trackChanges = true)
         {
             var query = trackChanges ? _dbSet : _dbSet.AsNoTracking();
             return await query.FirstOrDefaultAsync(e => e.Id == uuid);
         }
 
-        /// <summary>
-        /// procura classe por id inteiro (com opção de AsNoTracking)
-        /// </summary>
         public virtual async Task<T?> GetById(int id, bool trackChanges = true)
         {
             if (trackChanges)

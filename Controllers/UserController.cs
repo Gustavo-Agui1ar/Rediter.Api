@@ -129,6 +129,7 @@ namespace Rediter.Api.Controllers
             }
         }
 
+        // DELETE: api/users/{id}
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> DeleteUser([FromRoute] Guid id)
         {
@@ -166,6 +167,7 @@ namespace Rediter.Api.Controllers
             }
         }
 
+        // POST: api/users/{id}/follow
         [HttpPost("{id:guid}/follow")]
         public async Task<IActionResult> FollowUser([FromRoute] Guid id)
         {
@@ -184,6 +186,7 @@ namespace Rediter.Api.Controllers
             }
         }
 
+        // DELETE: api/users/{id}/unfollow
         [HttpDelete("{id:guid}/unfollow")]
         public async Task<IActionResult> UnfollowUser([FromRoute] Guid id)
         {
@@ -202,6 +205,7 @@ namespace Rediter.Api.Controllers
             }
         }
 
+        // POST: api/users/{id}/block
         [HttpPost("{id:guid}/block")]
         public async Task<IActionResult> BlockUser([FromRoute] Guid id)
         {
@@ -219,6 +223,7 @@ namespace Rediter.Api.Controllers
             }
         }
 
+        // DELETE: api/users/{id}/unblock
         [HttpDelete("{id:guid}/unblock")]
         public async Task<IActionResult> UnblockUser([FromRoute] Guid id)
         {
@@ -235,6 +240,7 @@ namespace Rediter.Api.Controllers
             }
         }
 
+        // GET: api/users/me/blocked
         [HttpGet("me/blocked")]
         public async Task<IActionResult> GetBlockedUsers([FromQuery] DateTime? lastCreatedAt, [FromQuery] Guid? lastId, [FromQuery] int pageSize)
         {
@@ -252,6 +258,7 @@ namespace Rediter.Api.Controllers
             }
         }
 
+        // POST: api/users/devices
         [HttpPost("devices")]
         public async Task<IActionResult> RegisterDevice([FromBody] DeviceDTO deviceDto)
         {

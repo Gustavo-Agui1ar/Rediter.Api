@@ -66,52 +66,59 @@ namespace Rediter.Api.Infrastructure.Notifications
                         var receiverElement = doc.RootElement.GetProperty("ReceiverId");
                         Guid? receiverId = receiverElement.ValueKind != JsonValueKind.Null ? receiverElement.GetGuid() : null;
 
-                        if (messageDto != null && receiverId.HasValue)
+                        if(receiverId == null)
                         {
-                            _logger.LogInformation("[RabbitMQ] Processando mensagem do chat: {ChatId}", chatId);
+                            _logger.LogWarning("[RabbitMQ] Payload da mensagem possui ReceiverId vazio.");
+                            return;
+                        }
 
-                            bool isProprioUsuario = false;
-                            string? deviceToken = null;
+                        if(messageDto == null)
+                        {
+                            _logger.LogWarning("[RabbitMQ] Payload da mensagem possui MessageDTO inválido ou vazio.");
+                            return;
+                        }
 
-                            using (var scope = _scopeFactory.CreateScope())
-                            {
-                                var context = scope.ServiceProvider.GetRequiredService<DataContext>();
+                        _logger.LogInformation("[RabbitMQ] Processando mensagem do chat: {ChatId}", chatId);
+
+                        bool isProprioUsuario = false;
+                        string? deviceToken = null;
+
+                        using (var scope = _scopeFactory.CreateScope())
+                        {
+                            var context = scope.ServiceProvider.GetRequiredService<DataContext>();
 
                                 var senderId = await context.Set<Models.Chats.Message>()
-                                    .Where(m => m.Id == messageDto.messageId)
-                                    .Select(m => m.SenderId)
-                                    .FirstOrDefaultAsync(stoppingToken);
+                                .Where(m => m.Id == messageDto.messageId)
+                                .Select(m => m.SenderId)
+                                .FirstOrDefaultAsync(stoppingToken);
 
-                                if (senderId == receiverId.Value)
-                                    isProprioUsuario = true;
-                                else
-                                {
-                                    deviceToken = await context.Set<User>()
-                                        .Where(u => u.Id == receiverId.Value)
-                                        .Select(u => u.DeviceToken)
-                                        .FirstOrDefaultAsync(stoppingToken);
-                                }
-                            }
-
-                            if (isProprioUsuario)
-                                _logger.LogInformation("[RabbitMQ] O destinatário é o próprio remetente. SignalR e Push cancelados.");
+                            if (senderId == receiverId.Value)
+                                isProprioUsuario = true;
                             else
                             {
-                                _logger.LogInformation("[SignalR] Disparando evento para o grupo user:{ReceiverId}", receiverId.Value);
-                                await _hubContext.Clients.Group($"user:{receiverId.Value}")
-                                    .SendAsync("ReceiveMessage", chatId.ToString(), messageDto, cancellationToken: stoppingToken);
-
-                                if (!string.IsNullOrEmpty(deviceToken))
-                                {
-                                    _logger.LogInformation("[Firebase] DeviceToken encontrado para {UserId}. Enviando Push...", receiverId.Value);
-                                    await EnviarPushNotificationFirebaseAsync(deviceToken, chatId, messageDto, stoppingToken);
-                                }
-                                else
-                                    _logger.LogWarning("[Firebase] O usuário {UserId} NÃO possui DeviceToken no banco. Push ignorado.", receiverId.Value);
+                                deviceToken = await context.Set<User>()
+                                    .Where(u => u.Id == receiverId.Value)
+                                    .Select(u => u.DeviceToken)
+                                    .FirstOrDefaultAsync(stoppingToken);
                             }
                         }
+
+                        if (isProprioUsuario)
+                            _logger.LogInformation("[RabbitMQ] O destinatário é o próprio remetente. SignalR e Push cancelados.");
                         else
-                            _logger.LogWarning("[RabbitMQ] ⚠️ MessageDTO ou ReceiverId inválidos no payload.");
+                        {
+                            _logger.LogInformation("[SignalR] Disparando evento para o grupo user:{ReceiverId}", receiverId.Value);
+                            await _hubContext.Clients.Group($"user:{receiverId.Value}")
+                                .SendAsync("ReceiveMessage", chatId.ToString(), messageDto, cancellationToken: stoppingToken);
+
+                            if (!string.IsNullOrEmpty(deviceToken))
+                            {
+                                _logger.LogInformation("[Firebase] DeviceToken encontrado para {UserId}. Enviando Push...", receiverId.Value);
+                                await EnviarPushNotificationFirebaseAsync(deviceToken, chatId, messageDto, stoppingToken);
+                            }
+                            else
+                                _logger.LogWarning("[Firebase] O usuário {UserId} NÃO possui DeviceToken no banco. Push ignorado.", receiverId.Value);
+                        }
 
                         await channel.BasicAckAsync(deliveryTag: ea.DeliveryTag, multiple: false, cancellationToken: stoppingToken);
                         _logger.LogInformation("[RabbitMQ] Processamento finalizado com sucesso (ACK).");

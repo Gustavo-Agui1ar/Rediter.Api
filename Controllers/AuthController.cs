@@ -19,9 +19,7 @@ namespace Rediter.Api.Controllers
             _logger = logger;
         }
 
-        /// <summary>
-        /// Login com email e senha
-        /// </summary>
+        // POST: api/auth/login
         [HttpPost("login")]
         [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] LoginDTO login)
@@ -44,9 +42,7 @@ namespace Rediter.Api.Controllers
             }
         }
 
-        /// <summary>
-        /// Login com Google OAuth
-        /// </summary>
+        // POST: api/auth/login/google
         [HttpPost("login/google")]
         [AllowAnonymous]
         public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequestDTO dto)
@@ -63,9 +59,7 @@ namespace Rediter.Api.Controllers
             }
         }
 
-        /// <summary>
-        /// Envia código de verificação por email
-        /// </summary>
+        // POST: api/auth/verification-code
         [HttpPost("verification-code")]
         [AllowAnonymous]
         public async Task<IActionResult> SendVerificationCode([FromBody] EmailRequestDTO request)
@@ -88,9 +82,7 @@ namespace Rediter.Api.Controllers
             }
         }
 
-        /// <summary>
-        /// Verifica código enviado por email
-        /// </summary>
+        // POST: api/auth/verification-code/confirm
         [HttpPost("verification-code/confirm")]
         [AllowAnonymous]
         public async Task<IActionResult> ConfirmVerificationCode([FromBody] VerifyCodeRequestDTO request)
@@ -102,15 +94,12 @@ namespace Rediter.Api.Controllers
             }
             catch (Exception ex)
             {
-                // Erro do cliente (código errado), marcamos como Warning.
                 _logger.LogWarning("[Auth] Código inválido para: {Email}. Motivo: {Motivo}", request.Email, ex.Message);
                 return BadRequest(new { message = "Código inválido ou expirado." });
             }
         }
-
-        /// <summary>
-        /// Gera novo access token
-        /// </summary>
+        
+        // POST: api/auth/refresh-token 
         [HttpPost("refresh-token")]
         [AllowAnonymous]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDTO request)
@@ -137,6 +126,7 @@ namespace Rediter.Api.Controllers
             }
         }
 
+        // POST: api/auth/generate-code
         [HttpPost("generate-code")]
         [AllowAnonymous]
         public async Task<IActionResult> GenerateCode([FromBody] EmailRequestDTO request)

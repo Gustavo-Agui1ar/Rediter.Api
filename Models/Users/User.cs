@@ -17,6 +17,8 @@ public class User : Entity
 
     public virtual bool IsVerified { get; set; }
     public virtual string? VerificationCode { get; set; }
+    public virtual DateTime? VerificationCodeExpiration { get; set; }
+
     public virtual string? RefreshToken { get; set; }
     public virtual DateTime? RefreshTokenExpiration { get; set; }
     public virtual string? Description { get; set; }

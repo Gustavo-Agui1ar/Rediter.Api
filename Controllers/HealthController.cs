@@ -10,10 +10,7 @@ namespace Rediter.Api.Controllers
     {
         private static readonly DateTime StartTime = DateTime.UtcNow;
 
-        /// <summary>
-        /// Rota básica para verificar se a API está respondendo.
-        /// GET: api/health
-        /// </summary>
+        // GET: api/health
         [HttpGet]
         public IActionResult GetStatus()
         {
@@ -24,20 +21,14 @@ namespace Rediter.Api.Controllers
             });
         }
 
-        /// <summary>
-        /// Rota super leve apenas para testar a conectividade.
         /// GET: api/health/ping
-        /// </summary>
         [HttpGet("ping")]
         public IActionResult Ping()
         {
             return Ok("pong");
         }
 
-        /// <summary>
-        /// Rota detalhada com informações do servidor e da aplicação.
-        /// GET: api/health/details
-        /// </summary>
+        // GET: api/health/details
         [HttpGet("details")]
         public IActionResult GetDetails()
         {

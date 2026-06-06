@@ -37,7 +37,8 @@ namespace Rediter.Api.Services.Users
                         Email = dto.Email,
                         Password = HashService.HashPassword(dto.Password),
                         CreatedAt = DateTime.UtcNow,
-                        VerificationCode = new Random(DateTime.Now.Millisecond).Next(100000, 999999).ToString()
+                        VerificationCode = new Random(DateTime.Now.Millisecond).Next(100000, 999999).ToString(),
+                        VerificationCodeExpiration = DateTime.UtcNow.AddMinutes(3)
                     };
 
                     await _emailService.SendVerificationCodeAsync(user.Email, user.Name, user.VerificationCode);

@@ -58,33 +58,44 @@ namespace Rediter.Api.Infrastructure.Notifications
 
                         var payload = JsonSerializer.Deserialize<NotificationDTO>(mensagemJson);
 
-                        if (payload != null)
-                        {
-                            _logger.LogInformation("[RabbitMQ] Processando notificação para o usuário: {UserId}", payload.ReceiverUserId);
-
-                            await _hubContext.Clients.Group($"user:{payload.ReceiverUserId}")
-                                                     .SendAsync("ReceiveNotification", payload, cancellationToken: stoppingToken);
-
-                            string? deviceToken = null;
-                            using (var scope = _scopeFactory.CreateScope())
-                            {
-                                var context = scope.ServiceProvider.GetRequiredService<DataContext>();
-
-                                deviceToken = await context.Set<User>()
-                                    .Where(u => u.Id == payload.ReceiverUserId)
-                                    .Select(u => u.DeviceToken)
-                                    .FirstOrDefaultAsync(stoppingToken); 
-                            }
-
-                            if (string.IsNullOrEmpty(deviceToken))
-                            {
-                                _logger.LogWarning("[RabbitMQ] Notificação para o usuário {UserId} não possui DeviceToken. Ignorando envio de push.", payload.ReceiverUserId);
-                            }
-                            else
-                            {
-                                await EnviarPushNotificationFirebaseAsync(deviceToken, payload, stoppingToken);
-                            }
+                        if(payload == null) {
+                            _logger.LogWarning("[RabbitMQ] Payload da notificação é nulo.");
+                            return;
                         }
+
+                        if(payload.ReceiverUserId == Guid.Empty)
+                        {
+                            _logger.LogWarning("[RabbitMQ] Payload da notificação possui ReceiverUserId vazio.");
+                            return;
+                        }
+
+                        if (payload.ReceiverUserId == payload.SenderUserId)
+                        {
+                            _logger.LogWarning("[RabbitMQ] Notificação ignorada: SenderUserId é igual ao ReceiverUserId ({UserId}).", payload.ReceiverUserId);
+                            return;
+                        }
+                        
+                        _logger.LogInformation("[RabbitMQ] Processando notificação para o usuário: {UserId}", payload.ReceiverUserId);
+
+                        await _hubContext.Clients.Group($"user:{payload.ReceiverUserId}")
+                                                    .SendAsync("ReceiveNotification", payload, cancellationToken: stoppingToken);
+
+                        string? deviceToken = null;
+                        using (var scope = _scopeFactory.CreateScope())
+                        {
+                            var context = scope.ServiceProvider.GetRequiredService<DataContext>();
+
+                            deviceToken = await context.Set<User>()
+                                .Where(u => u.Id == payload.ReceiverUserId)
+                                .Select(u => u.DeviceToken)
+                                .FirstOrDefaultAsync(stoppingToken); 
+                        }
+
+                        if (string.IsNullOrEmpty(deviceToken))
+                            _logger.LogWarning("[RabbitMQ] Notificação para o usuário {UserId} não possui DeviceToken. Ignorando envio de push.", payload.ReceiverUserId);
+                        else
+                            await EnviarPushNotificationFirebaseAsync(deviceToken, payload, stoppingToken);
+                        
 
                         await channel.BasicAckAsync(deliveryTag: ea.DeliveryTag,
                                                     multiple: false,

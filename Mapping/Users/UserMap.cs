@@ -19,6 +19,7 @@ public class UserMap : EntityMap<User>
         builder.Property(x => x.IsVerified).HasColumnName("IS_VERIFIED").HasDefaultValue(false);
         builder.Property(x => x.IsDeleted).HasColumnName("IS_DELETED").HasDefaultValue(false);
         builder.Property(x => x.VerificationCode).HasColumnName("VERIFICATION_CODE");
+        builder.Property(x => x.VerificationCodeExpiration).HasColumnName("VERIFICATION_CODE_EXPIRATION");
         builder.Property(x => x.RefreshToken).HasColumnName("REFRESH_TOKEN");
         builder.Property(x => x.RefreshTokenExpiration).HasColumnName("REFRESH_TOKEN_EXPIRATION");
         builder.Property(x => x.Description).HasColumnName("DESCRIPTION").HasMaxLength(500);

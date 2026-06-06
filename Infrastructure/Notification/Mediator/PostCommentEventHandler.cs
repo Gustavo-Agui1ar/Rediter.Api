@@ -16,7 +16,7 @@ public class PostCommentEventHandler : INotificationHandler<CommentAddedEvent>
 
     public Task Handle(CommentAddedEvent notification, CancellationToken cancellationToken)
     {
-        // if (notification.SenderUserId == notification.RecipientUserId) return Task.CompletedTask;
+        if (notification.SenderUserId == notification.RecipientUserId) return Task.CompletedTask;
 
         var notifDb = new Notification
         {

@@ -33,10 +33,4 @@
     <PackageReference Include="SixLabors.ImageSharp" Version="2.1.9" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Utilitaries\" />
-    <Folder Include="Validators\" />
-    <Folder Include="wwwroot\uploads\" />
-  </ItemGroup>
-
 </Project>

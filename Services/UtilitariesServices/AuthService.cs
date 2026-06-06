@@ -29,9 +29,14 @@ namespace Rediter.Api.Services.UtilitariesServices
             if (user == null)
                 throw new Exception("User not found");
 
-            if (!inputCode.Equals(user.VerificationCode) || user.CreatedAt.AddDays(1) < DateTime.UtcNow)
+            if(user.VerificationCodeExpiration == null)
+                throw new Exception("Verification code not generated.");
+
+            if (!inputCode.Equals(user.VerificationCode) || DateTime.UtcNow > user.VerificationCodeExpiration.Value)
                 throw new Exception("Invalid or expired verification code.");
 
+            user.VerificationCodeExpiration = null;
+            
             return await GenerateToken(user, true);
         }
 
@@ -44,6 +49,7 @@ namespace Rediter.Api.Services.UtilitariesServices
             string verificationCode = Random.Shared.Next(100000, 999999).ToString();
 
             user.VerificationCode = verificationCode;
+            user.VerificationCodeExpiration = DateTime.UtcNow.AddMinutes(3);
             user.CreatedAt = DateTime.UtcNow; 
 
             _userService.Update(user);

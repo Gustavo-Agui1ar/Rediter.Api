@@ -153,6 +153,7 @@ namespace Rediter.Api.Controllers
             }
         }
 
+        // GET: api/posts/feed/discover
         [HttpGet("feed/discover")]
         public async Task<IActionResult> GetDiscoverPosts([FromQuery] DateTime? lastCreatedAt, [FromQuery] int? lastScore, [FromQuery] Guid? lastId, [FromQuery] int pageSize)
         {
@@ -171,7 +172,7 @@ namespace Rediter.Api.Controllers
             }
         }
 
-
+        // GET: api/posts/feed/following
         [HttpGet("feed/following")]
         public async Task<IActionResult> GetFollowingPosts([FromQuery] DateTime? lastCreatedAt, [FromQuery] Guid? lastId, [FromQuery] int pageSize)
         {

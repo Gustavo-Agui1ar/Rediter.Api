@@ -8,11 +8,24 @@ namespace Rediter.Api.Controllers
 {
     [ApiController]
     [Route("api/notifications")]
-    [Authorize] // Protege a rota: apenas usuários com token JWT válido podem acessar
+    [Authorize] 
     public class NotificationsController : ControllerBase
     {
         private readonly NotificationService _notificationService;
         private readonly ILogger<NotificationsController> _logger;
+        
+        #region Métodos Privados Auxiliares
+
+        private Guid GetLoggedUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userIdClaim))
+                throw new UnauthorizedAccessException("Usuário não autenticado ou token inválido.");
+
+            return new Guid(userIdClaim);
+        }
+        #endregion
 
         public NotificationsController(NotificationService notificationService, ILogger<NotificationsController> logger)
         {
@@ -20,9 +33,7 @@ namespace Rediter.Api.Controllers
             _logger = logger;
         }
 
-        /// <summary>
-        /// Obtém a quantidade de notificações não lidas do usuário logado
-        /// </summary>
+        // GET: api/notifications/unread-count
         [HttpGet("unread-count")]
         public async Task<IActionResult> GetUnreadCount()
         {
@@ -36,14 +47,11 @@ namespace Rediter.Api.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[Notifications] Erro interno ao buscar contagem de notificações para o usuário: {UserId}", GetLoggedUserIdSafe());
-                return StatusCode(500, new { message = "Erro interno ao buscar contador de notificações." });
+                return StatusCode(500, new { message = $"Erro interno ao buscar contador de notificações. \n {ex.Message}" });
             }
         }
 
-        /// <summary>
-        /// Busca a lista de notificações do usuário com paginação baseada em cursor (Keyset Pagination)
-        /// </summary>
+        // GET: api/notifications?lastCreatedAt=2024-01-01T00:00:00Z&lastId=00000000-0000-0000-0000-000000000000&pageSize=15
         [HttpGet]
         public async Task<IActionResult> GetNotifications([FromQuery] DateTime? lastCreatedAt, [FromQuery] Guid? lastId, [FromQuery] int pageSize)
         {
@@ -60,37 +68,11 @@ namespace Rediter.Api.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[Notifications] Erro ao buscar lista de notificações para o usuário: {UserId}", GetLoggedUserIdSafe());
-                return StatusCode(500, new { message = "Erro interno ao buscar notificações." });
+                return StatusCode(500, new { message = $"Erro interno ao buscar notificações. \n {ex.Message}" });
             }
         }
 
-        #region Métodos Privados Auxiliares
-
-        /// <summary>
-        /// Extrai o ID do usuário do Token JWT. Lança exceção se não encontrar.
-        /// </summary>
-        private Guid GetLoggedUserId()
-        {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            if (string.IsNullOrEmpty(userIdClaim))
-                throw new UnauthorizedAccessException("Usuário não autenticado ou token inválido.");
-
-            return new Guid(userIdClaim);
-        }
-
-        /// <summary>
-        /// Usado apenas para logs, não quebra a aplicação se o token estiver ausente.
-        /// </summary>
-        private string GetLoggedUserIdSafe()
-        {
-            return User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "Desconhecido";
-        }
-
-        /// <summary>
-        /// Marca uma notificação específica como lida
-        /// </summary>
+        // PUT: api/notifications/{id}/read
         [HttpPut("{id}/read")]
         public async Task<IActionResult> MarkAsRead([FromRoute] Guid id)
         {
@@ -99,18 +81,15 @@ namespace Rediter.Api.Controllers
                 Guid userId = GetLoggedUserId();
                 await _notificationService.MarkAsReadAsync(id, userId);
 
-                return NoContent(); // 204 No Content é o padrão para PUTs que dão certo e não retornam body
+                return NoContent(); 
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[Notifications] Erro ao marcar notificação {NotifId} como lida para o usuário: {UserId}", id, GetLoggedUserIdSafe());
-                return StatusCode(500, new { message = "Erro interno ao atualizar notificação." });
+                return StatusCode(500, new { message = $"Erro interno ao atualizar notificação. \n {ex.Message}" });
             }
         }
 
-        /// <summary>
-        /// Marca todas as notificações do usuário como lidas de uma vez
-        /// </summary>
+        // PUT: api/notifications/read-all
         [HttpPut("read-all")]
         public async Task<IActionResult> MarkAllAsRead()
         {
@@ -123,11 +102,8 @@ namespace Rediter.Api.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[Notifications] Erro ao marcar todas as notificações como lidas para o usuário: {UserId}", GetLoggedUserIdSafe());
-                return StatusCode(500, new { message = "Erro interno ao atualizar notificações." });
+                return StatusCode(500, new { message = $"Erro interno ao atualizar notificações. \n {ex.Message}" });
             }
         }
-
-        #endregion
     }
 }

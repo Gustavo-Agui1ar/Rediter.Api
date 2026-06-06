@@ -14,9 +14,7 @@ namespace Rediter.Api.Controllers
             _pictureService = pictureService;
         }
 
-        /// <summary>
-        /// Retorna uma imagem pelo nome
-        /// </summary>
+        // GET: api/pictures/{name}?isThumb=true
         [HttpGet("{name}")]
         [ResponseCache(Duration = 2592000, Location = ResponseCacheLocation.Client)]
         public async Task<IActionResult> GetByName([FromRoute] string name, [FromQuery] bool isThumb = true)
