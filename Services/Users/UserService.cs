@@ -108,7 +108,10 @@ namespace Rediter.Api.Services.Users
 
                 if (!string.Equals(user.Description, dto.Description))
                     user.Description = dto.Description;
-
+                
+                if (!string.Equals(user.LanguageCode, dto.Lan) && !string.IsNullOrWhiteSpace(dto.Lan))
+                    user.LanguageCode = dto.Lan;
+    
                 if (dto.File != null)
                 {
                     user.ProfilePicture = await _pictureService.CreatePicture(dto.File);

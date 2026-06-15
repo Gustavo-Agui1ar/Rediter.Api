@@ -21,6 +21,7 @@
         string? Email = null,
         string? Password = null,
         string? Description = null,
+        string? Lan = null,
         IFormFile? File = null,
         IFormFile? Cover = null
     );

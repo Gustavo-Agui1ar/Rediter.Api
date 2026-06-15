@@ -6,7 +6,6 @@ using RabbitMQ.Client.Events;
 using Rediter.Api.Data;
 using Rediter.Api.DTOs;
 using Rediter.Api.Hubs;
-using Rediter.Api.Models.Chats;
 using Rediter.Api.Models.Users;
 using System.Text;
 using System.Text.Json;
@@ -40,98 +39,12 @@ namespace Rediter.Api.Infrastructure.Notifications
             try
             {
                 await using var channel = await _rabbitConnection.CreateChannelAsync(cancellationToken: stoppingToken);
-
-                await channel.QueueDeclareAsync(queue: _queueName,
-                                                durable: true,
-                                                exclusive: false,
-                                                autoDelete: false,
-                                                arguments: null,
-                                                cancellationToken: stoppingToken);
+                await channel.QueueDeclareAsync(_queueName, durable: true, exclusive: false, autoDelete: false, arguments: null, cancellationToken: stoppingToken);
 
                 var consumer = new AsyncEventingBasicConsumer(channel);
+                consumer.ReceivedAsync += async (sender, ea) => await HandleMessageAsync(channel, ea, stoppingToken);
 
-                consumer.ReceivedAsync += async (sender, ea) =>
-                {
-                    try
-                    {
-                        var body = ea.Body.ToArray();
-                        var json = Encoding.UTF8.GetString(body);
-
-                        _logger.LogInformation("[RabbitMQ] Mensagem recebida na fila. Payload: {Json}", json);
-
-                        using var doc = JsonDocument.Parse(json);
-                        var chatId = doc.RootElement.GetProperty("ChatId").GetGuid();
-                        var messageDtoJson = doc.RootElement.GetProperty("Message").GetRawText();
-                        var messageDto = JsonSerializer.Deserialize<MessageDTO>(messageDtoJson);
-                        var receiverElement = doc.RootElement.GetProperty("ReceiverId");
-                        Guid? receiverId = receiverElement.ValueKind != JsonValueKind.Null ? receiverElement.GetGuid() : null;
-
-                        if(receiverId == null)
-                        {
-                            _logger.LogWarning("[RabbitMQ] Payload da mensagem possui ReceiverId vazio.");
-                            return;
-                        }
-
-                        if(messageDto == null)
-                        {
-                            _logger.LogWarning("[RabbitMQ] Payload da mensagem possui MessageDTO inválido ou vazio.");
-                            return;
-                        }
-
-                        _logger.LogInformation("[RabbitMQ] Processando mensagem do chat: {ChatId}", chatId);
-
-                        bool isProprioUsuario = false;
-                        string? deviceToken = null;
-
-                        using (var scope = _scopeFactory.CreateScope())
-                        {
-                            var context = scope.ServiceProvider.GetRequiredService<DataContext>();
-
-                                var senderId = await context.Set<Models.Chats.Message>()
-                                .Where(m => m.Id == messageDto.messageId)
-                                .Select(m => m.SenderId)
-                                .FirstOrDefaultAsync(stoppingToken);
-
-                            if (senderId == receiverId.Value)
-                                isProprioUsuario = true;
-                            else
-                            {
-                                deviceToken = await context.Set<User>()
-                                    .Where(u => u.Id == receiverId.Value)
-                                    .Select(u => u.DeviceToken)
-                                    .FirstOrDefaultAsync(stoppingToken);
-                            }
-                        }
-
-                        if (isProprioUsuario)
-                            _logger.LogInformation("[RabbitMQ] O destinatário é o próprio remetente. SignalR e Push cancelados.");
-                        else
-                        {
-                            _logger.LogInformation("[SignalR] Disparando evento para o grupo user:{ReceiverId}", receiverId.Value);
-                            await _hubContext.Clients.Group($"user:{receiverId.Value}")
-                                .SendAsync("ReceiveMessage", chatId.ToString(), messageDto, cancellationToken: stoppingToken);
-
-                            if (!string.IsNullOrEmpty(deviceToken))
-                            {
-                                _logger.LogInformation("[Firebase] DeviceToken encontrado para {UserId}. Enviando Push...", receiverId.Value);
-                                await EnviarPushNotificationFirebaseAsync(deviceToken, chatId, messageDto, stoppingToken);
-                            }
-                            else
-                                _logger.LogWarning("[Firebase] O usuário {UserId} NÃO possui DeviceToken no banco. Push ignorado.", receiverId.Value);
-                        }
-
-                        await channel.BasicAckAsync(deliveryTag: ea.DeliveryTag, multiple: false, cancellationToken: stoppingToken);
-                        _logger.LogInformation("[RabbitMQ] Processamento finalizado com sucesso (ACK).");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "[RabbitMQ] Erro interno ao repassar mensagem de chat.");
-                        await channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: true, cancellationToken: stoppingToken);
-                    }
-                };
-
-                await channel.BasicConsumeAsync(queue: _queueName, autoAck: false, consumer: consumer, cancellationToken: stoppingToken);
-
+                await channel.BasicConsumeAsync(_queueName, autoAck: false, consumer: consumer, cancellationToken: stoppingToken);
                 await Task.Delay(Timeout.Infinite, stoppingToken);
             }
             catch (Exception ex)
@@ -140,28 +53,111 @@ namespace Rediter.Api.Infrastructure.Notifications
             }
         }
 
-        private async Task EnviarPushNotificationFirebaseAsync(string deviceToken, Guid chatId, MessageDTO message, CancellationToken stoppingToken)
+        private async Task HandleMessageAsync(IChannel channel, BasicDeliverEventArgs ea, CancellationToken stoppingToken)
         {
             try
             {
-                var pushMessage = new FirebaseAdmin.Messaging.Message()
+                var json = Encoding.UTF8.GetString(ea.Body.ToArray());
+                _logger.LogInformation("[RabbitMQ] Mensagem recebida na fila. Payload: {Json}", json);
+
+                await ProcessNotificationAsync(json, stoppingToken);
+
+                await channel.BasicAckAsync(ea.DeliveryTag, multiple: false, cancellationToken: stoppingToken);
+                _logger.LogInformation("[RabbitMQ] Processamento finalizado com sucesso (ACK).");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[RabbitMQ] Erro interno ao repassar mensagem de chat.");
+                await channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: true, cancellationToken: stoppingToken);
+            }
+        }
+
+        private async Task ProcessNotificationAsync(string json, CancellationToken stoppingToken)
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            var chatId = root.GetProperty("ChatId").GetGuid();
+            var receiverElement = root.GetProperty("ReceiverId");
+            var messageDto = JsonSerializer.Deserialize<MessageDTO>(root.GetProperty("Message").GetRawText());
+            var receiverId = receiverElement.ValueKind != JsonValueKind.Null ? receiverElement.GetGuid() : (Guid?)null;
+
+            if (receiverId == null || messageDto == null)
+            {
+                _logger.LogWarning("[RabbitMQ] Payload inválido: ReceiverId ou MessageDTO nulos.");
+                return;
+            }
+
+            _logger.LogInformation("[RabbitMQ] Processando mensagem do chat: {ChatId}", chatId);
+            await DispatchNotificationsAsync(chatId, receiverId.Value, messageDto, stoppingToken);
+        }
+
+        private async Task DispatchNotificationsAsync(Guid chatId, Guid receiverId, MessageDTO messageDto, CancellationToken stoppingToken)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<DataContext>();
+
+            var senderId = await context.Set<Models.Chats.Message>()
+                .Where(m => m.Id == messageDto.messageId)
+                .Select(m => m.SenderId)
+                .FirstOrDefaultAsync(stoppingToken);
+
+            if (senderId == receiverId)
+            {
+                _logger.LogInformation("[RabbitMQ] O destinatário é o próprio remetente. SignalR e Push cancelados.");
+                return;
+            }
+
+            _logger.LogInformation("[SignalR] Disparando evento para o grupo user:{ReceiverId}", receiverId);
+            await _hubContext.Clients.Group($"user:{receiverId}").SendAsync("ReceiveMessage", chatId.ToString(), messageDto, cancellationToken: stoppingToken);
+
+            var receiverInfo = await context.Set<User>()
+                .Where(u => u.Id == receiverId)
+                .Select(u => new { u.DeviceToken, u.LanguageCode, u.Name })
+                .FirstOrDefaultAsync(stoppingToken);
+
+            if (receiverInfo == null || string.IsNullOrEmpty(receiverInfo.DeviceToken))
+            {
+                _logger.LogWarning("[Firebase] O usuário {UserId} NÃO possui DeviceToken no banco. Push ignorado.", receiverId);
+                return;
+            }
+
+            _logger.LogInformation("[Firebase] DeviceToken encontrado para {UserId}. Enviando Push...", receiverId);
+            string languageCode = receiverInfo.LanguageCode ?? "pt";
+
+            await EnviarPushNotificationFirebaseAsync(receiverInfo.DeviceToken, languageCode, chatId, receiverInfo.Name, messageDto.messageId, stoppingToken);
+        }
+
+        private async Task EnviarPushNotificationFirebaseAsync(string deviceToken, string languageCode, Guid chatId, string name, Guid messageId, CancellationToken stoppingToken)
+        {
+            try
+            {
+                bool isEnglish = languageCode.StartsWith("en", StringComparison.OrdinalIgnoreCase);
+
+                var pushMessage = new Message()
                 {
                     Token = deviceToken,
-                    Notification = new FirebaseAdmin.Messaging.Notification()
+                    Notification = new Notification()
                     {
-                        Title = "Nova mensagem",
-                        Body = message.content.Length > 50 ? message.content.Substring(0, 47) + "..." : message.content
+                        Title = isEnglish ? "New message" : "Nova mensagem",
+                        Body = isEnglish ? $"You have a new message from {name}." : $"Você tem uma nova mensagem de {name}."
                     },
                     Data = new Dictionary<string, string>()
                     {
                         { "chatId", chatId.ToString() },
-                        { "messageId", message.messageId.ToString() },
-                        { "type", "new_chat_message" } 
+                        { "messageId", messageId.ToString() },
+                        { "type", "new_chat_message" }
                     }
                 };
 
                 string response = await FirebaseMessaging.DefaultInstance.SendAsync(pushMessage, stoppingToken);
                 _logger.LogInformation("[Firebase] Push de chat enviado. MessageID: {Response}", response);
+            }
+            catch (FirebaseMessagingException ex)
+            {
+                _logger.LogError(ex,
+                    "Firebase error. Code={Code}",
+                    ex.ErrorCode);
             }
             catch (Exception ex)
             {

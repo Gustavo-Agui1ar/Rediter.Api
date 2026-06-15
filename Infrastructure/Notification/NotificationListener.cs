@@ -23,12 +23,12 @@ namespace Rediter.Api.Infrastructure.Notifications
         public NotificationListener(
             IConnection rabbitConnection,
             IHubContext<NotificationHub> hubContext,
-            IServiceScopeFactory scopeFactory, 
+            IServiceScopeFactory scopeFactory,
             ILogger<NotificationListener> logger)
         {
             _rabbitConnection = rabbitConnection;
             _hubContext = hubContext;
-            _scopeFactory = scopeFactory; 
+            _scopeFactory = scopeFactory;
             _logger = logger;
         }
 
@@ -58,12 +58,13 @@ namespace Rediter.Api.Infrastructure.Notifications
 
                         var payload = JsonSerializer.Deserialize<NotificationDTO>(mensagemJson);
 
-                        if(payload == null) {
+                        if (payload == null)
+                        {
                             _logger.LogWarning("[RabbitMQ] Payload da notificação é nulo.");
                             return;
                         }
 
-                        if(payload.ReceiverUserId == Guid.Empty)
+                        if (payload.ReceiverUserId == Guid.Empty)
                         {
                             _logger.LogWarning("[RabbitMQ] Payload da notificação possui ReceiverUserId vazio.");
                             return;
@@ -74,28 +75,35 @@ namespace Rediter.Api.Infrastructure.Notifications
                             _logger.LogWarning("[RabbitMQ] Notificação ignorada: SenderUserId é igual ao ReceiverUserId ({UserId}).", payload.ReceiverUserId);
                             return;
                         }
-                        
+
                         _logger.LogInformation("[RabbitMQ] Processando notificação para o usuário: {UserId}", payload.ReceiverUserId);
 
                         await _hubContext.Clients.Group($"user:{payload.ReceiverUserId}")
                                                     .SendAsync("ReceiveNotification", payload, cancellationToken: stoppingToken);
 
                         string? deviceToken = null;
+                        string languageCode = "pt"; // Idioma fallback (padrão)
+
                         using (var scope = _scopeFactory.CreateScope())
                         {
                             var context = scope.ServiceProvider.GetRequiredService<DataContext>();
 
-                            deviceToken = await context.Set<User>()
+                            var userInfo = await context.Set<User>()
                                 .Where(u => u.Id == payload.ReceiverUserId)
-                                .Select(u => u.DeviceToken)
-                                .FirstOrDefaultAsync(stoppingToken); 
+                                .Select(u => new { u.DeviceToken, u.LanguageCode })
+                                .FirstOrDefaultAsync(stoppingToken);
+
+                            if (userInfo != null)
+                            {
+                                deviceToken = userInfo.DeviceToken;
+                                languageCode = userInfo.LanguageCode ?? "pt";
+                            }
                         }
 
                         if (string.IsNullOrEmpty(deviceToken))
                             _logger.LogWarning("[RabbitMQ] Notificação para o usuário {UserId} não possui DeviceToken. Ignorando envio de push.", payload.ReceiverUserId);
                         else
-                            await EnviarPushNotificationFirebaseAsync(deviceToken, payload, stoppingToken);
-                        
+                            await EnviarPushNotificationFirebaseAsync(deviceToken, languageCode, payload, stoppingToken);
 
                         await channel.BasicAckAsync(deliveryTag: ea.DeliveryTag,
                                                     multiple: false,
@@ -121,22 +129,45 @@ namespace Rediter.Api.Infrastructure.Notifications
             }
         }
 
-        private async Task EnviarPushNotificationFirebaseAsync(string deviceToken, NotificationDTO payload, CancellationToken stoppingToken)
+        private async Task EnviarPushNotificationFirebaseAsync(string deviceToken, string languageCode, NotificationDTO payload, CancellationToken stoppingToken)
         {
             try
             {
+                bool isEnglish = languageCode.StartsWith("en", StringComparison.OrdinalIgnoreCase);
+
+                string title;
+                string body;
+
+                switch (payload.Type)
+                {
+                    case "PostLiked":
+                        title = isEnglish ? "New Like" : "Nova Curtida";
+                        body = isEnglish ? "Someone liked your post!" : "Alguém curtiu sua publicação!";
+                        break;
+                    case "CommentAdded":
+                        title = isEnglish ? "New Comment" : "Novo Comentário";
+                        body = isEnglish ? "Someone commented on your post!" : "Alguém comentou na sua publicação!";
+                        break;
+                    default:
+                        title = "Rediter";
+                        body = isEnglish ? "You have a new notification!" : "Você tem uma nova notificação!";
+                        break;
+                }
+
                 var message = new Message()
                 {
                     Token = deviceToken,
+
                     Notification = new FirebaseAdmin.Messaging.Notification()
                     {
-                        Title = "Rediter",
-                        Body = "Você tem uma nova notificação!"
+                        Title = title,
+                        Body = body
                     },
+
                     Data = new Dictionary<string, string>()
                     {
                         { "notificationId", payload.Id.ToString() },
-                        { "type", "new_interaction" }
+                        { "type", payload.Type ?? "new_interaction" }
                     }
                 };
 

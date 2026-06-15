@@ -23,6 +23,7 @@ public class UserMap : EntityMap<User>
         builder.Property(x => x.RefreshToken).HasColumnName("REFRESH_TOKEN");
         builder.Property(x => x.RefreshTokenExpiration).HasColumnName("REFRESH_TOKEN_EXPIRATION");
         builder.Property(x => x.Description).HasColumnName("DESCRIPTION").HasMaxLength(500);
+        builder.Property(x => x.LanguageCode).HasColumnName("LANGUAGE_CODE").HasMaxLength(10).HasDefaultValue("en");
 
         builder.Property(x => x.FollowersCount).HasColumnName("FOLLOWERS_COUNT").HasDefaultValue(0);
         builder.Property(x => x.FollowingCount).HasColumnName("FOLLOWING_COUNT").HasDefaultValue(0);

@@ -36,7 +36,8 @@ namespace Rediter.Api.Services.UtilitariesServices
                 throw new Exception("Invalid or expired verification code.");
 
             user.VerificationCodeExpiration = null;
-            
+            user.IsVerified = true;
+
             return await GenerateToken(user, true);
         }
 
@@ -64,6 +65,9 @@ namespace Rediter.Api.Services.UtilitariesServices
 
             if (user == null)
                 throw new Exception("Invalid email.");
+
+            if(!user.IsVerified)
+                throw new Exception("User not verified.");
 
             if (!HashService.VerifyPassword(password, user.Password!))
                 throw new Exception("Invalid password.");

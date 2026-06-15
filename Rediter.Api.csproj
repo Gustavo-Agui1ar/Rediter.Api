@@ -33,4 +33,8 @@
     <PackageReference Include="SixLabors.ImageSharp" Version="2.1.9" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="wwwroot\" />
+  </ItemGroup>
+
 </Project>
