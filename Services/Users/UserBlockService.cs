@@ -52,13 +52,7 @@ namespace Rediter.Api.Services.Users
         {
             try
             {
-                User? blocker = await _userRepository.GetByUuid(user);
-                User? blocked = await _userRepository.GetByUuid(targetUnblock);
-
-                if (blocker == null || blocked == null)
-                    throw new Exception("Blocker or blocked user not found.");
-
-                UserBlock? block = blocker.BlockedUsers.FirstOrDefault(b => b.BlockedId == blocked.Id);
+                UserBlock? block = await _userBlockRepository.GetBlockByUserIds(user, targetUnblock);
 
                 if (block == null)
                     throw new Exception("Not blocking this user.");
