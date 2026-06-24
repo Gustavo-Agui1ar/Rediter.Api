@@ -373,6 +373,7 @@ try
             Name = "RediterAdmin",
             Email = adminEmail,
             Password = hashedPassword,
+            IsVerified = true
         };
 
         newAdmin.Roles.Add(adminRole);

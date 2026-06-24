@@ -41,7 +41,7 @@ namespace Rediter.Api.Services.Users
                         VerificationCodeExpiration = DateTime.UtcNow.AddMinutes(3)
                     };
 
-                    await _emailService.SendVerificationCodeAsync(user.Email, user.Name, user.VerificationCode);
+                    await _emailService.SendVerificationCodeAsync(user.Email, user.Name, user.VerificationCode, user.LanguageCode);
 
                     Role? defaultRole = await _UserRepository.GetRoleDefault();
 

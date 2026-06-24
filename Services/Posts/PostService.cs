@@ -27,11 +27,12 @@ namespace Rediter.Api.Services.Posts
             {
                 try
                 {
+                    DateTime createdAt = DateTime.UtcNow;
                     Post post = new Post
                     {
                         UserId = userUuid,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow,
+                        CreatedAt = createdAt,
+                        UpdatedAt = createdAt,
                         Content = dto.Text,
                         LocationName = dto.LocationName,
                         ParentPostId = null

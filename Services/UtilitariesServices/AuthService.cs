@@ -56,7 +56,7 @@ namespace Rediter.Api.Services.UtilitariesServices
             _userService.Update(user);
             await _userService.SaveChangesAsync();
 
-            await _emailService.SendVerificationCodeAsync(user.Email, user.Name, verificationCode);
+            await _emailService.SendVerificationCodeAsync(user.Email, user.Name, verificationCode, user.LanguageCode);
         }
 
         public async Task<TokenRequestDTO> AuthenticateFromRediter(string email, string password)
