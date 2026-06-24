@@ -37,7 +37,7 @@ namespace Rediter.Api.Services.UtilitariesServices
 
             user.VerificationCodeExpiration = null;
             user.IsVerified = true;
-
+        
             return await GenerateToken(user, true);
         }
 
@@ -105,6 +105,7 @@ namespace Rediter.Api.Services.UtilitariesServices
                 {
                     Email = userEmail,
                     Name = userName,
+                    IsVerified = true,
                     Password = "",
                     VerificationCode = "",
                     CreatedAt = DateTime.UtcNow,
@@ -143,7 +144,7 @@ namespace Rediter.Api.Services.UtilitariesServices
 
             if (user == null)
                 return (false, "Invalid Refresh Token. Please login again.", null);
-
+                
             if (user.RefreshTokenExpiration <= DateTime.UtcNow)
                 return (false, "Refresh Token expired. Please login again.", null);
 
